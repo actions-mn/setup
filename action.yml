@@ -1,0 +1,10 @@
+name: 'Setup Metanorma'
+description: 'Set up a specific version of Metanorma and add the command-line tools to the PATH'
+author: 'Metanorma'
+inputs: 
+  version:
+    description: 'Version range or exact version of a metanorma-cli ruby gem.'
+    default: '1.2.8'
+runs:
+  using: 'node12'
+  main: 'lib/setup-metanorma.js'
