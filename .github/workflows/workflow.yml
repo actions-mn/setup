@@ -27,3 +27,9 @@ jobs:
       run: npm run format-check
     - name: test
       run: npm test
+    - name: Setup metanorma
+      uses: ./
+    - name: Which metanorma
+      run: |
+        which metanorma
+        metanorma help
