@@ -13,6 +13,10 @@ process.env['RUNNER_TEMP'] = tempDir;
 
 import {installMetanormaVersion} from '../src/installer';
 
+const IS_WINDOWS = process.platform === 'win32';
+const IS_MACOSX = process.platform === 'darwin';
+const IS_LINUX = process.platform === 'linux';
+
 describe('find-ruby', () => {
   beforeAll(async () => {
     await io.rmRF(toolDir);
@@ -30,7 +34,32 @@ describe('find-ruby', () => {
 
   it('install metanorma with no version', async () => {
     await installMetanormaVersion(null);
-    expect(exec.exec).toHaveBeenCalled();
+
+    let cmd: string | null = null;
+    if (IS_MACOSX) {
+      cmd =
+        'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
+    } else if (IS_LINUX) {
+      cmd = 'sudo bash ./ubuntu.sh';
+    } else if (IS_WINDOWS) {
+      cmd = 'choco install -y metanorma';
+    }
+    expect(exec.exec).toHaveBeenCalledWith(cmd);
+  });
+
+  it('install metanorma with version 1.2.3', async () => {
+    await installMetanormaVersion('1.2.3');
+
+    let cmd: string | null = null;
+    if (IS_MACOSX) {
+      cmd =
+        'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/v1.2.3/Formula/metanorma.rb';
+    } else if (IS_LINUX) {
+      cmd = 'sudo bash ./ubuntu.sh';
+    } else if (IS_WINDOWS) {
+      cmd = 'choco install -y metanorma --version 1.2.3';
+    }
+    expect(exec.exec).toHaveBeenCalledWith(cmd);
   });
 
   // TODO add more tests

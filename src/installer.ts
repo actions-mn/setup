@@ -9,6 +9,7 @@ const IS_MACOSX = process.platform === 'darwin';
 const IS_LINUX = process.platform === 'linux';
 
 async function download(url: string, path: string) {
+  console.log(`url: ${url}`);
   const res = await fetch(url);
   await new Promise((resolve, reject) => {
     const fileStream = fs.createWriteStream(path);
@@ -23,7 +24,7 @@ async function download(url: string, path: string) {
 }
 
 export async function installMetanormaVersion(version: string | null) {
-  let toolPath: string = '/usr/bin/metanorma';
+  let toolPath: string | null = null;
 
   let revision: string = 'master';
   if (version != null) {
@@ -34,15 +35,11 @@ export async function installMetanormaVersion(version: string | null) {
   if (IS_MACOSX) {
     let formulaUrl: string = `https://raw.githubusercontent.com/metanorma/homebrew-metanorma/${revision}/Formula/metanorma.rb`;
     cmd = `brew install --HEAD ${formulaUrl}`;
-    toolPath = '/usr/local/bin/metanorma';
   } else if (IS_LINUX) {
-    let script: string = './ubuntu.sh';
-    await download(
-      `https://raw.githubusercontent.com/metanorma/metanorma-linux-setup/${revision}/ubuntu.sh`,
-      script
-    );
-    cmd = `sudo bash ${script}`;
-    toolPath = '/usr/bin/metanorma';
+    let scriptFile: string = './ubuntu.sh';
+    let scriptUrl: string = `https://raw.githubusercontent.com/metanorma/metanorma-linux-setup/master/ubuntu.sh`;
+    await download(scriptUrl, scriptFile);
+    cmd = `sudo bash ${scriptFile}`;
   } else if (IS_WINDOWS) {
     if (version == null) {
       cmd = 'choco install -y metanorma';
@@ -54,8 +51,11 @@ export async function installMetanormaVersion(version: string | null) {
 
   if (cmd != null) {
     await exec.exec(cmd);
-    core.addPath(toolPath);
   } else {
     throw new Error(`Unsupported platform ${process.platform}`);
+  }
+
+  if (toolPath != null) {
+    core.addPath(toolPath);
   }
 }
