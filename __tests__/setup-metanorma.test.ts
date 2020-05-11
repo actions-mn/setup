@@ -1,7 +1,8 @@
 import * as io from '@actions/io';
-import fs = require('fs');
-import os = require('os');
-import path = require('path');
+import * as exec from '@actions/exec';
+import * as path from 'path';
+
+jest.mock('@actions/exec');
 
 const toolDir = path.join(__dirname, 'runner', 'tools');
 const tempDir = path.join(__dirname, 'runner', 'temp');
@@ -29,9 +30,8 @@ describe('find-ruby', () => {
 
   it('install metanorma with no version', async () => {
     await installMetanormaVersion(null);
+    expect(exec.exec).toHaveBeenCalled();
   });
 
-  it('install metanorma with no version', async () => {
-    await installMetanormaVersion(null);
-  });
+  // TODO add more tests
 });
