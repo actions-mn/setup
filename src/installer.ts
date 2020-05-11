@@ -39,6 +39,7 @@ export async function installMetanormaVersion(version: string | null) {
     let scriptFile: string = './ubuntu.sh';
     let scriptUrl: string = `https://raw.githubusercontent.com/metanorma/metanorma-linux-setup/master/ubuntu.sh`;
     await download(scriptUrl, scriptFile);
+    await exec.exec('sudo apt-get update -y');
     cmd = `sudo bash ${scriptFile}`;
   } else if (IS_WINDOWS) {
     if (version == null) {
