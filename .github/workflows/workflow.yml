@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest]
+        operating-system: [ubuntu-latest, windows-latest, macos-latest]
     steps:
     - name: Checkout
       uses: actions/checkout@master
@@ -30,6 +30,12 @@ jobs:
     - name: Setup metanorma
       uses: ./
     - name: Which metanorma
+      if: matrix.os != 'windows-latest'
       run: |
         which metanorma
+        metanorma help
+    - name: Which metanorma
+      if: matrix.os == 'windows-latest'
+      run: |
+        where metanorma
         metanorma help
