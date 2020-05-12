@@ -40,9 +40,9 @@ describe('find-ruby', () => {
       cmd =
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
     } else if (IS_LINUX) {
-      cmd = 'sudo bash ./ubuntu.sh';
+      cmd = 'sudo gem install metanorma-cli';
     } else if (IS_WINDOWS) {
-      cmd = 'choco install -y metanorma';
+      cmd = 'choco install metanorma --yes';
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
   });
@@ -55,9 +55,9 @@ describe('find-ruby', () => {
       cmd =
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/v1.2.3/Formula/metanorma.rb';
     } else if (IS_LINUX) {
-      cmd = 'sudo bash ./ubuntu.sh';
+      cmd = 'sudo gem install metanorma-cli -v 1.2.3';
     } else if (IS_WINDOWS) {
-      cmd = 'choco install -y metanorma --version 1.2.3';
+      cmd = 'choco install metanorma --yes --version 1.2.3';
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
   });

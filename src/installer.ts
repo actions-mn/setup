@@ -40,17 +40,22 @@ export async function installMetanormaVersion(version: string | null) {
     let scriptUrl: string = `https://raw.githubusercontent.com/metanorma/metanorma-linux-setup/master/ubuntu.sh`;
     await download(scriptUrl, scriptFile);
     await exec.exec('sudo apt-get update -y');
-    cmd = `sudo bash ${scriptFile}`;
-  } else if (IS_WINDOWS) {
-    if (version == null) {
-      cmd = 'choco install -y metanorma';
+    await exec.exec(`sudo bash ${scriptFile}`);
+    if (version) {
+      cmd = `sudo gem install metanorma-cli -v ${version}`;
     } else {
-      cmd = `choco install -y metanorma --version ${version}`;
+      cmd = 'sudo gem install metanorma-cli';
+    }
+  } else if (IS_WINDOWS) {
+    if (version) {
+      cmd = `choco install metanorma --yes --version ${version}`;
+    } else {
+      cmd = 'choco install metanorma --yes';
     }
     toolPath = `${process.env.ChocolateyPackageFolder}\\metanorma`;
   }
 
-  if (cmd != null) {
+  if (cmd) {
     await exec.exec(cmd);
   } else {
     throw new Error(`Unsupported platform ${process.platform}`);
