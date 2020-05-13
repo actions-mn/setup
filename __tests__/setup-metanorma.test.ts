@@ -1,8 +1,10 @@
 import * as io from '@actions/io';
 import * as exec from '@actions/exec';
+import * as core from '@actions/core';
 import * as path from 'path';
 
 jest.mock('@actions/exec');
+jest.mock('@actions/core');
 
 const toolDir = path.join(__dirname, 'runner', 'tools');
 const tempDir = path.join(__dirname, 'runner', 'temp');
@@ -39,10 +41,15 @@ describe('find-ruby', () => {
     if (IS_MACOSX) {
       cmd =
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
+      expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo gem install metanorma-cli';
+      expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes';
+      expect(core.addPath).toHaveBeenCalledWith(
+        `${process.env.ChocolateyToolsLocation}\\ruby25\\bin`
+      );
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
   });
@@ -54,10 +61,15 @@ describe('find-ruby', () => {
     if (IS_MACOSX) {
       cmd =
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
+      expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo gem install metanorma-cli';
+      expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes';
+      expect(core.addPath).toHaveBeenCalledWith(
+        `${process.env.ChocolateyToolsLocation}\\ruby25\\bin`
+      );
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
   });
@@ -69,10 +81,15 @@ describe('find-ruby', () => {
     if (IS_MACOSX) {
       cmd =
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/v1.2.3/Formula/metanorma.rb';
+      expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo gem install metanorma-cli -v 1.2.3';
+      expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --version 1.2.3';
+      expect(core.addPath).toHaveBeenCalledWith(
+        `${process.env.ChocolateyToolsLocation}\\ruby25\\bin`
+      );
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
   });

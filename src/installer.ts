@@ -24,8 +24,6 @@ async function download(url: string, path: string) {
 }
 
 export async function installMetanormaVersion(version: string | null) {
-  let toolPath: string | null = null;
-
   let cmd: string | null = null;
   if (IS_MACOSX) {
     let revision: string = 'master';
@@ -51,19 +49,12 @@ export async function installMetanormaVersion(version: string | null) {
     } else {
       cmd = 'choco install metanorma --yes';
     }
-    toolPath = `${process.env.ChocolateyToolsLocation}/ruby25/bin`.replace(
-      '\\',
-      '/'
-    );
+    core.addPath(`${process.env.ChocolateyToolsLocation}\\ruby25\\bin`);
   }
 
   if (cmd) {
     await exec.exec(cmd);
   } else {
     throw new Error(`Unsupported platform ${process.platform}`);
-  }
-
-  if (toolPath != null) {
-    core.addPath(toolPath);
   }
 }
