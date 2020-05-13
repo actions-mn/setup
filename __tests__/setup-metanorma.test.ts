@@ -32,8 +32,23 @@ describe('find-ruby', () => {
     }
   }, 100000);
 
-  it('install metanorma with no version', async () => {
+  it('install metanorma with null version', async () => {
     await installMetanormaVersion(null);
+
+    let cmd: string | null = null;
+    if (IS_MACOSX) {
+      cmd =
+        'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
+    } else if (IS_LINUX) {
+      cmd = 'sudo gem install metanorma-cli';
+    } else if (IS_WINDOWS) {
+      cmd = 'choco install metanorma --yes';
+    }
+    expect(exec.exec).toHaveBeenCalledWith(cmd);
+  });
+
+  it('install metanorma with "" version', async () => {
+    await installMetanormaVersion('');
 
     let cmd: string | null = null;
     if (IS_MACOSX) {

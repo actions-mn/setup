@@ -26,13 +26,12 @@ async function download(url: string, path: string) {
 export async function installMetanormaVersion(version: string | null) {
   let toolPath: string | null = null;
 
-  let revision: string = 'master';
-  if (version != null) {
-    revision = `v${version}`;
-  }
-
   let cmd: string | null = null;
   if (IS_MACOSX) {
+    let revision: string = 'master';
+    if (version && version !== '') {
+      revision = `v${version}`;
+    }
     let formulaUrl: string = `https://raw.githubusercontent.com/metanorma/homebrew-metanorma/${revision}/Formula/metanorma.rb`;
     cmd = `brew install --HEAD ${formulaUrl}`;
   } else if (IS_LINUX) {
@@ -41,13 +40,13 @@ export async function installMetanormaVersion(version: string | null) {
     await download(scriptUrl, scriptFile);
     await exec.exec('sudo apt-get update -y');
     await exec.exec(`sudo bash ${scriptFile}`);
-    if (version) {
+    if (version && version !== '') {
       cmd = `sudo gem install metanorma-cli -v ${version}`;
     } else {
       cmd = 'sudo gem install metanorma-cli';
     }
   } else if (IS_WINDOWS) {
-    if (version) {
+    if (version && version !== '') {
       cmd = `choco install metanorma --yes --version ${version}`;
     } else {
       cmd = 'choco install metanorma --yes';
