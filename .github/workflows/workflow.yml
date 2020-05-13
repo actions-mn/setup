@@ -29,13 +29,6 @@ jobs:
       run: yarn test
     - name: Setup metanorma
       uses: ./
-    - name: Which metanorma
-      if: matrix.os != 'windows-latest'
+    - name: Test help
       run: |
-        which metanorma
         metanorma help
-    - name: Which metanorma
-      if: matrix.os == 'windows-latest'
-      shell: pwsh
-      run: |
-        & metanorma help
