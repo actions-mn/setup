@@ -1,5 +1,5 @@
 name: 'Setup Metanorma'
-description: 'Set up a specific version of Metanorma and add the command-line tools to the PATH'
+description: 'Set up metanorma toolchain and add the command-line tools to the PATH'
 author: 'Metanorma'
 inputs: 
   version:
