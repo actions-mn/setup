@@ -51,7 +51,7 @@ export async function installMetanormaVersion(version: string | null) {
     } else {
       cmd = 'choco install metanorma --yes';
     }
-    toolPath = `${process.env.ChocolateyPackageFolder}\\metanorma`;
+    toolPath = `${process.env.ChocolateyToolsLocation}/ruby25/bin`;
   }
 
   if (cmd) {
