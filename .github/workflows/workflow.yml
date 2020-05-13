@@ -37,5 +37,5 @@ jobs:
     - name: Which metanorma
       if: matrix.os == 'windows-latest'
       run: |
-        where metanorma
-        metanorma help
+        Get-Command metanorma | Select-Object -ExpandProperty Definition
+        & metanorma help
