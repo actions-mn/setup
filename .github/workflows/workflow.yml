@@ -29,6 +29,14 @@ jobs:
       run: yarn test
     - name: Setup metanorma
       uses: ./
+    - name: Examine PATH
+      if: matrix.os != 'windows-latest'
+      run: |
+        echo "PATH=$PATH"
+    - name: Examine PATH
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo "PATH=$Env.PATH"
     - name: Test help
       run: |
         metanorma help
