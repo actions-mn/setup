@@ -36,6 +36,6 @@ jobs:
         metanorma help
     - name: Which metanorma
       if: matrix.os == 'windows-latest'
+      shell: pwsh
       run: |
-        Get-Command metanorma | Select-Object -ExpandProperty Definition
         & metanorma help
