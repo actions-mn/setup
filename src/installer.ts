@@ -49,7 +49,11 @@ export async function installMetanormaVersion(version: string | null) {
     } else {
       cmd = 'choco install metanorma --yes';
     }
-    core.addPath(`${process.env['ChocolateyToolsLocation']}\\ruby25\\bin`);
+
+    let chocoTools: string =
+      process.env['ChocolateyToolsLocation'] || 'c:\\tools';
+
+    core.addPath(`${chocoTools}\\ruby25\\bin`);
   }
 
   if (cmd) {

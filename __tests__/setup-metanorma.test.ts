@@ -44,12 +44,10 @@ describe('find-ruby', () => {
       expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo gem install rake metanorma-cli';
-      expect(core.addPath).not.toHaveBeenCalled();
+      expect(core.addPath).not.toBeCalled();
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes';
-      expect(core.addPath).toHaveBeenCalledWith(
-        `${process.env.ChocolateyToolsLocation}\\ruby25\\bin`
-      );
+      expect(core.addPath).toBeCalled();
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
   });
@@ -61,15 +59,13 @@ describe('find-ruby', () => {
     if (IS_MACOSX) {
       cmd =
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
-      expect(core.addPath).not.toHaveBeenCalled();
+      expect(core.addPath).not.toBeCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo gem install rake metanorma-cli';
-      expect(core.addPath).not.toHaveBeenCalled();
+      expect(core.addPath).not.toBeCalled();
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes';
-      expect(core.addPath).toHaveBeenCalledWith(
-        `${process.env.ChocolateyToolsLocation}\\ruby25\\bin`
-      );
+      expect(core.addPath).toBeCalled();
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
   });
@@ -81,15 +77,13 @@ describe('find-ruby', () => {
     if (IS_MACOSX) {
       cmd =
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/v1.2.3/Formula/metanorma.rb';
-      expect(core.addPath).not.toHaveBeenCalled();
+      expect(core.addPath).not.toBeCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo gem install rake metanorma-cli:1.2.3';
-      expect(core.addPath).not.toHaveBeenCalled();
+      expect(core.addPath).not.toBeCalled();
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --version 1.2.3';
-      expect(core.addPath).toHaveBeenCalledWith(
-        `${process.env['ChocolateyToolsLocation']}\\ruby25\\bin`
-      );
+      expect(core.addPath).toBeCalled();
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
   });
