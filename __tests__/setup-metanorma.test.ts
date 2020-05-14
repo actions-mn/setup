@@ -88,7 +88,7 @@ describe('find-ruby', () => {
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --version 1.2.3';
       expect(core.addPath).toHaveBeenCalledWith(
-        `${process.env.ChocolateyToolsLocation}\\ruby25\\bin`
+        `${process.env['ChocolateyToolsLocation']}\\ruby25\\bin`
       );
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
