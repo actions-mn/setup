@@ -34,7 +34,7 @@ export async function installMetanormaVersion(version: string | null) {
     cmd = `brew install --HEAD ${formulaUrl}`;
   } else if (IS_LINUX) {
     let scriptFile: string = './ubuntu.sh';
-    let scriptUrl: string = `https://raw.githubusercontent.com/metanorma/metanorma-linux-setup/master/ubuntu.sh`;
+    let scriptUrl: string = `https://raw.githubusercontent.com/metanorma/metanorma-linux-setup/f63b6ea79bb16389e03b5d1e40a8484a4264edff/ubuntu.sh`;
     await download(scriptUrl, scriptFile);
     await exec.exec('sudo apt-get update -y');
     await exec.exec(`sudo bash ${scriptFile}`);
