@@ -1,13 +1,10 @@
-# setup-ruby
+# actions-mn/setup
 
-<p align="left">
-  <a href="https://github.com/actions/setup-ruby"><img alt="GitHub Actions status" src="https://github.com/actions/setup-ruby/workflows/Main%20workflow/badge.svg"></a>
-</p>
+![Main workflow](https://github.com/actions-mn/setup/workflows/Main%20workflow/badge.svg)
 
-This action sets up a ruby environment for use in actions by:
+This action sets up a metanorma environment for use in actions by:
 
-- optionally installing a version of ruby and adding to PATH. Note that this action only uses versions of Ruby already installed in the cache. The action will fail if no matching versions are found.
-- registering problem matchers for error output
+- optionally installing a version of metanorma and adding to PATH. The action will fail if no matching versions are found.
 
 # Usage
 
@@ -17,35 +14,25 @@ Basic:
 ```yaml
 steps:
 - uses: actions/checkout@master
-- uses: actions/setup-ruby@v1
-  with:
-    ruby-version: '2.x' # Version range or exact version of a Ruby version to use, using semvers version range syntax.
-- run: ruby hello.rb
+- uses: actions-mn/setup@v1
 ```
 
-Matrix Testing:
+With specific version:
 ```yaml
 jobs:
   build:
-    runs-on: ubuntu-16.04
+    runs-on: matrix.os
     strategy:
       matrix:
-        ruby: [ '2.x', '3.x' ]
-    name: Ruby ${{ matrix.ruby }} sample
+        os: [ windows-latest, macos-latest, ubuntu-latest ]
+    name: Compule on ${{ matrix.os }}
     steps:
       - uses: actions/checkout@master
-      - name: Setup ruby
-        uses: actions/setup-ruby@v1
-        with:
-          ruby-version: ${{ matrix.ruby }}
-          architecture: 'x64'
-      - run: ruby hello.rb
+      - uses: actions-mn/setup@v1
+      - name: Compile document
+        run: metanorma document.adoc
 ```
 
 # License
 
 The scripts and documentation in this project are released under the [MIT License](LICENSE)
-
-# Contributions
-
-Contributions are welcome!  See [Contributor's Guide](docs/contributors.md)
