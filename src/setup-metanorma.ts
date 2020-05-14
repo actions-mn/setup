@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import {findMetanormaVersion} from './installer';
+import {installMetanormaVersion} from './installer';
 
 async function run() {
   try {
