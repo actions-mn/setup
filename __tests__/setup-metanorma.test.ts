@@ -40,7 +40,7 @@ describe('find-ruby', () => {
     let cmd: string | null = null;
     if (IS_MACOSX) {
       cmd =
-        'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
+        'brew install metanorma/metanorma/metanorma';
       expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo snap install metanorma';
@@ -58,7 +58,7 @@ describe('find-ruby', () => {
     let cmd: string | null = null;
     if (IS_MACOSX) {
       cmd =
-        'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
+        'brew install metanorma/metanorma/metanorma';
       expect(core.addPath).not.toBeCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo snap install metanorma';
@@ -75,8 +75,7 @@ describe('find-ruby', () => {
 
     let cmd: string | null = null;
     if (IS_MACOSX) {
-      cmd =
-        'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/v1.2.3/Formula/metanorma.rb';
+      cmd = 'brew install metanorma/metanorma/metanorma';
       expect(core.addPath).not.toBeCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo snap install metanorma';

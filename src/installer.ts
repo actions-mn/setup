@@ -26,12 +26,7 @@ async function download(url: string, path: string) {
 export async function installMetanormaVersion(version: string | null) {
   let cmd: string | null = null;
   if (IS_MACOSX) {
-    let revision: string = 'master';
-    if (version && version !== '') {
-      revision = `v${version}`;
-    }
-    let formulaUrl: string = `https://raw.githubusercontent.com/metanorma/homebrew-metanorma/${revision}/Formula/metanorma.rb`;
-    cmd = `brew install --HEAD ${formulaUrl}`;
+    cmd = 'brew install metanorma/metanorma/metanorma';
   } else if (IS_LINUX) {
     cmd = 'sudo snap install metanorma';
   } else if (IS_WINDOWS) {
