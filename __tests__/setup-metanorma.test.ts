@@ -39,8 +39,7 @@ describe('find-ruby', () => {
 
     let cmd: string | null = null;
     if (IS_MACOSX) {
-      cmd =
-        'brew install metanorma/metanorma/metanorma';
+      cmd = 'brew install metanorma/metanorma/metanorma';
       expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo snap install metanorma';
@@ -57,8 +56,7 @@ describe('find-ruby', () => {
 
     let cmd: string | null = null;
     if (IS_MACOSX) {
-      cmd =
-        'brew install metanorma/metanorma/metanorma';
+      cmd = 'brew install metanorma/metanorma/metanorma';
       expect(core.addPath).not.toBeCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo snap install metanorma';
