@@ -43,7 +43,7 @@ describe('find-ruby', () => {
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
       expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_LINUX) {
-      cmd = 'sudo gem install rake metanorma-cli';
+      cmd = 'sudo snap install metanorma';
       expect(core.addPath).not.toBeCalled();
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes';
@@ -61,7 +61,7 @@ describe('find-ruby', () => {
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/master/Formula/metanorma.rb';
       expect(core.addPath).not.toBeCalled();
     } else if (IS_LINUX) {
-      cmd = 'sudo gem install rake metanorma-cli';
+      cmd = 'sudo snap install metanorma';
       expect(core.addPath).not.toBeCalled();
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes';
@@ -79,7 +79,7 @@ describe('find-ruby', () => {
         'brew install --HEAD https://raw.githubusercontent.com/metanorma/homebrew-metanorma/v1.2.3/Formula/metanorma.rb';
       expect(core.addPath).not.toBeCalled();
     } else if (IS_LINUX) {
-      cmd = 'sudo gem install rake metanorma-cli:1.2.3';
+      cmd = 'sudo snap install metanorma';
       expect(core.addPath).not.toBeCalled();
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --version 1.2.3';
