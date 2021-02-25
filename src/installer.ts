@@ -33,16 +33,7 @@ export async function installMetanormaVersion(version: string | null) {
     let formulaUrl: string = `https://raw.githubusercontent.com/metanorma/homebrew-metanorma/${revision}/Formula/metanorma.rb`;
     cmd = `brew install --HEAD ${formulaUrl}`;
   } else if (IS_LINUX) {
-    let scriptFile: string = './ubuntu.sh';
-    let scriptUrl: string = `https://raw.githubusercontent.com/metanorma/metanorma-linux-setup/master/ubuntu.sh`;
-    await download(scriptUrl, scriptFile);
-    await exec.exec('sudo apt-get update -y');
-    await exec.exec(`sudo bash ${scriptFile}`);
-    if (version && version !== '') {
-      cmd = `sudo gem install rake metanorma-cli:${version}`;
-    } else {
-      cmd = 'sudo gem install rake metanorma-cli';
-    }
+    cmd = 'sudo snap install metanorma';
   } else if (IS_WINDOWS) {
     if (version && version !== '') {
       cmd = `choco install metanorma --yes --version ${version}`;
