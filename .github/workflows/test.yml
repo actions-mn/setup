@@ -6,8 +6,8 @@ on:
   pull_request:
 
 jobs:
-  run:
-    name: Run
+  local:
+    name: local tests
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -33,5 +33,17 @@ jobs:
       run: env
 
     - run: metanorma help
+  remote:
+    name: remote tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+    steps:
+    - uses: actions-mn/setup@master
+    - run: metanorma help
+    
+    
 
     - run: metanorma version
