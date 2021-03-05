@@ -1,6 +1,6 @@
 # actions-mn/setup
 
-![Main workflow](https://github.com/actions-mn/setup/workflows/Main%20workflow/badge.svg)
+![test](https://github.com/actions-mn/setup/workflows/test/badge.svg)
 
 This action sets up a metanorma environment for use in actions by:
 
