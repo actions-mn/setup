@@ -40,15 +40,13 @@ describe('find-ruby', () => {
     let cmd: string | null = null;
     if (IS_MACOSX) {
       cmd = 'brew install metanorma/metanorma/metanorma';
-      expect(core.addPath).not.toHaveBeenCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo snap install metanorma';
-      expect(core.addPath).not.toBeCalled();
     } else if (IS_WINDOWS) {
-      cmd = 'choco install metanorma --yes';
-      expect(core.addPath).toBeCalled();
+      cmd = 'choco install metanorma --yes --no-progress';
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
+    expect(core.addPath).not.toBeCalled();
   });
 
   it('install metanorma with "" version', async () => {
@@ -57,15 +55,13 @@ describe('find-ruby', () => {
     let cmd: string | null = null;
     if (IS_MACOSX) {
       cmd = 'brew install metanorma/metanorma/metanorma';
-      expect(core.addPath).not.toBeCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo snap install metanorma';
-      expect(core.addPath).not.toBeCalled();
     } else if (IS_WINDOWS) {
-      cmd = 'choco install metanorma --yes';
-      expect(core.addPath).toBeCalled();
+      cmd = 'choco install metanorma --yes --no-progress';
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
+    expect(core.addPath).not.toBeCalled();
   });
 
   it('install metanorma with version 1.2.3', async () => {
@@ -74,15 +70,13 @@ describe('find-ruby', () => {
     let cmd: string | null = null;
     if (IS_MACOSX) {
       cmd = 'brew install metanorma/metanorma/metanorma';
-      expect(core.addPath).not.toBeCalled();
     } else if (IS_LINUX) {
       cmd = 'sudo snap install metanorma';
-      expect(core.addPath).not.toBeCalled();
     } else if (IS_WINDOWS) {
-      cmd = 'choco install metanorma --yes --version 1.2.3';
-      expect(core.addPath).toBeCalled();
+      cmd = 'choco install metanorma --yes --no-progress --version 1.2.3';
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd);
+    expect(core.addPath).not.toBeCalled();
   });
 
   // TODO add more tests
