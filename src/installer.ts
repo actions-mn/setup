@@ -31,15 +31,10 @@ export async function installMetanormaVersion(version: string | null) {
     cmd = 'sudo snap install metanorma';
   } else if (IS_WINDOWS) {
     if (version && version !== '') {
-      cmd = `choco install metanorma --yes --version ${version}`;
+      cmd = `choco install metanorma --yes --no-progress --version ${version}`;
     } else {
-      cmd = 'choco install metanorma --yes';
+      cmd = 'choco install metanorma --yes --no-progress';
     }
-
-    let chocoTools: string =
-      process.env['ChocolateyToolsLocation'] || 'c:\\tools';
-
-    core.addPath(`${chocoTools}\\ruby25\\bin`);
   }
 
   if (cmd) {
