@@ -8,6 +8,12 @@ inputs:
   version:
     description: 'Version of a metanorma-cli ruby gem.'
     default: null
+  snap-channel:
+    description: 'Snapcraft channel, more details https://snapcraft.io/docs/channels'
+    default: 'stable'
+  choco-prerelase:
+    description: Allow prerelases for chocolatey packages
+    default: '' # false
 runs:
   using: 'node12'
   main: 'lib/setup-metanorma.js'
