@@ -6,7 +6,22 @@ on:
   pull_request:
 
 jobs:
-  local:
+  lint:
+    name: local tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-node@main
+      with:
+        version: 10.x
+
+    - run: yarn install
+    - run: yarn build
+    - run: yarn format-check
+    - run: yarn test
+
+  local-latest:
     name: local tests
     runs-on: ${{ matrix.os }}
     strategy:
@@ -16,15 +31,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - uses: actions/setup-node@master
-      with:
-        version: 10.x
-
-    - run: yarn install
-    - run: yarn build
-    - run: yarn format-check
-    - run: yarn test
-
     - uses: ./
 
     - if: matrix.os == 'windows-latest'
@@ -33,7 +39,44 @@ jobs:
       run: env
 
     - run: metanorma help
-  remote:
+
+  test-local-specific-version:
+    name: local test ${{ matrix.os }} metanorma@${{ matrix.version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest] # ubuntu-latest,
+        version: ['1.5.4']
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: ./
+      with:
+        version: ${{ matrix.version }}
+
+    - if: matrix.os != 'windows-latest'
+      run: |
+        if metanorma version | grep -q ${{ matrix.version }}; then
+          echo "correct metanorma version installed"
+        else
+          echo "wrong metanorma version installed, check env below:"
+          env
+          exit 1
+        fi
+    - if: matrix.os == 'windows-latest'
+      run: |
+        Get-ChildItem env:
+        $out = metanorma version
+        if (!$out[1].contains('${{ matrix.version }}')) {
+          Write-Host "wrong metanorma version installed! metanroma version: "
+          Write-Host $out
+          Write-Host "check env below:"
+          Get-ChildItem env:
+          exit 1
+        }
+
+  remote-latest:
     name: remote tests
     runs-on: ${{ matrix.os }}
     strategy:
@@ -44,6 +87,4 @@ jobs:
     - uses: actions-mn/setup@master
     - run: metanorma help
     
-    
-
     - run: metanorma version

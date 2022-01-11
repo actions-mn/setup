@@ -33,6 +33,11 @@ jobs:
         run: metanorma document.adoc
 ```
 
+# Maintainer notes
+
+1. yes, node_modules need to be commited(
+2. during development node_modules may be modified but devDependencies should not be commited, be careful
+
 # License
 
 The scripts and documentation in this project are released under the [MIT License](LICENSE)
