@@ -12,6 +12,9 @@ async function download(url: string, path: string) {
   const res = await fetch(url);
   await new Promise((resolve, reject) => {
     const fileStream = fs.createWriteStream(path);
+    if (!res.body) {
+      reject("Missing body in response");
+    }
     res.body.pipe(fileStream);
     res.body.on('error', err => {
       reject(err);
