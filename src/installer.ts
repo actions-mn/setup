@@ -12,13 +12,17 @@ async function download(url: string, path: string) {
   const res = await fetch(url);
   await new Promise((resolve, reject) => {
     const fileStream = fs.createWriteStream(path);
-    res.body.pipe(fileStream);
-    res.body.on('error', err => {
-      reject(err);
-    });
-    fileStream.on('finish', function() {
-      resolve();
-    });
+    if (res.body) {
+      res.body.pipe(fileStream);
+      res.body.on('error', err => {
+        reject(err);
+      });
+      fileStream.on('finish', function() {
+        resolve();
+      });
+    } else {
+      reject('Missing body in response');
+    }
   });
 }
 
