@@ -14,7 +14,7 @@ Basic:
 ```yaml
 steps:
 - uses: actions/checkout@master
-- uses: actions-mn/setup@v2
+- uses: actions-mn/setup@v1
 ```
 
 With specific version:

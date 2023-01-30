@@ -2,7 +2,7 @@ name: test
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
 
 jobs:
@@ -47,7 +47,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macos-latest] # ubuntu-latest,
-        version: ['1.5.4']
+        version: ['1.6.11']
     steps:
     - uses: actions/checkout@v2
 
@@ -75,16 +75,3 @@ jobs:
           Get-ChildItem env:
           exit 1
         }
-
-  remote-latest:
-    name: remote tests
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
-    steps:
-    - uses: actions-mn/setup@master
-    - run: metanorma help
-    
-    - run: metanorma version
