@@ -31,9 +31,9 @@ export async function installMetanormaVersion(
   snap_channel: string,
   choco_prerelase: boolean
 ) {
-  let cmd: string[] = [];
+  let cmds: string[] = [];
   if (IS_MACOSX) {
-    cmd = ['brew', 'install'];
+    let cmd = ['brew', 'install'];
     if (version) {
       let formulaUrl =
         'https://raw.githubusercontent.com/metanorma/homebrew-metanorma/' +
@@ -44,13 +44,15 @@ export async function installMetanormaVersion(
     } else {
       cmd.push('metanorma/metanorma/metanorma');
     }
+    cmds.push(cmd.join(' '));
   } else if (IS_LINUX) {
-    cmd = ['sudo', 'snap', 'install', 'metanorma'];
+    let cmd = ['sudo', 'snap', 'install', 'metanorma'];
     if (version) {
       cmd.push(`--channel=${version}/${snap_channel}`, '--classic');
     }
+    cmds.push(cmd.join(' '));
   } else if (IS_WINDOWS) {
-    cmd = ['choco', 'install', 'metanorma', '--yes', '--no-progress'];
+    let cmd = ['choco', 'install', 'metanorma', '--yes', '--no-progress'];
     if (choco_prerelase) {
       cmd.push('--pre');
     }
@@ -62,10 +64,15 @@ export async function installMetanormaVersion(
         cmd.push(version);
       }
     }
+    // workaround for 3.10-3.11 installation issues
+    cmds.push('choco install python3 --version 3.9.13 --yes --no-progress');
+    cmds.push(cmd.join(' '));
   }
 
-  if (cmd.length) {
-    await exec.exec(cmd.join(' '));
+  if (cmds.length) {
+    for (const cmd of cmds) {
+      await exec.exec(cmd);
+    }
   } else {
     throw new Error(`Unsupported platform ${process.platform}`);
   }
