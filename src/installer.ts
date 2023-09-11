@@ -32,6 +32,9 @@ export async function installMetanormaVersion(
   choco_prerelase: boolean
 ) {
   let cmds: string[] = [];
+  let options: exec.ExecOptions = {};
+  let ignoreFailure: boolean = false;
+
   if (IS_MACOSX) {
     let cmd = ['brew', 'install'];
     if (version) {
@@ -64,6 +67,16 @@ export async function installMetanormaVersion(
         cmd.push(version);
       }
     }
+
+    options.ignoreReturnCode = true;
+    options.listeners = {
+      stdout: data => {
+        if (!ignoreFailure) {
+          ignoreFailure = data.toString().includes(' - git.install (exited 1)');
+        }
+      }
+    };
+
     // workaround for 3.10-3.11 installation issues
     cmds.push('choco install python3 --version 3.9.13 --yes --no-progress');
     cmds.push(cmd.join(' '));
@@ -71,7 +84,10 @@ export async function installMetanormaVersion(
 
   if (cmds.length) {
     for (const cmd of cmds) {
-      await exec.exec(cmd);
+      let statusCode = await exec.exec(cmd, [], options);
+      if (statusCode != 0 && !ignoreFailure) {
+        throw new Error(`Command ${cmd} failed with exit code ${statusCode}`);
+      }
     }
   } else {
     throw new Error(`Unsupported platform ${process.platform}`);

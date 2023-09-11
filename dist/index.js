@@ -68,6 +68,8 @@ function download(url, path) {
 function installMetanormaVersion(version, snap_channel, choco_prerelase) {
     return __awaiter(this, void 0, void 0, function* () {
         let cmds = [];
+        let options = {};
+        let ignoreFailure = false;
         if (IS_MACOSX) {
             let cmd = ['brew', 'install'];
             if (version) {
@@ -103,13 +105,24 @@ function installMetanormaVersion(version, snap_channel, choco_prerelase) {
                     cmd.push(version);
                 }
             }
+            options.ignoreReturnCode = true;
+            options.listeners = {
+                stdout: data => {
+                    if (!ignoreFailure) {
+                        ignoreFailure = data.toString().includes(' - git.install (exited 1)');
+                    }
+                }
+            };
             // workaround for 3.10-3.11 installation issues
             cmds.push('choco install python3 --version 3.9.13 --yes --no-progress');
             cmds.push(cmd.join(' '));
         }
         if (cmds.length) {
             for (const cmd of cmds) {
-                yield exec.exec(cmd);
+                let statusCode = yield exec.exec(cmd, [], options);
+                if (statusCode != 0 && !ignoreFailure) {
+                    throw new Error(`Command ${cmd} failed with exit code ${statusCode}`);
+                }
             }
         }
         else {
