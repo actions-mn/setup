@@ -38,6 +38,7 @@ describe('find-ruby', () => {
   beforeAll(async () => {
     await io.rmRF(toolDir);
     await io.rmRF(tempDir);
+    (exec.exec as jest.Mock).mockResolvedValue(0);
   });
 
   afterAll(async () => {
@@ -51,7 +52,6 @@ describe('find-ruby', () => {
 
   it('install metanorma with null version', async () => {
     await installMetanormaVersion(null, 'stable', false);
-
     let cmd: string | null = null;
     if (IS_MACOSX) {
       cmd = 'brew install metanorma/metanorma/metanorma';
@@ -60,7 +60,7 @@ describe('find-ruby', () => {
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --no-progress';
     }
-    expect(exec.exec).toHaveBeenCalledWith(cmd);
+    expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
     expect(core.addPath).not.toBeCalled();
   });
 
@@ -75,7 +75,8 @@ describe('find-ruby', () => {
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --no-progress';
     }
-    expect(exec.exec).toHaveBeenCalledWith(cmd);
+    expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
+    expect(exec.exec).toHaveReturnedWith(Promise.resolve(0));
     expect(core.addPath).not.toBeCalled();
   });
 
@@ -94,7 +95,8 @@ describe('find-ruby', () => {
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --no-progress --version 1.2.3';
     }
-    expect(exec.exec).toHaveBeenCalledWith(cmd);
+    expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
+    expect(exec.exec).toHaveReturnedWith(Promise.resolve(0));
     expect(core.addPath).not.toBeCalled();
   });
 
@@ -109,7 +111,8 @@ describe('find-ruby', () => {
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --no-progress --pre';
     }
-    expect(exec.exec).toHaveBeenCalledWith(cmd);
+    expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
+    expect(exec.exec).toHaveReturnedWith(Promise.resolve(0));
     expect(core.addPath).not.toBeCalled();
   });
 
@@ -125,7 +128,8 @@ describe('find-ruby', () => {
       cmd =
         'choco install metanorma --yes --no-progress --pre --version 3.2.1-pre';
     }
-    expect(exec.exec).toHaveBeenCalledWith(cmd);
+    expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
+    expect(exec.exec).toHaveReturnedWith(Promise.resolve(0));
     expect(core.addPath).not.toBeCalled();
   });
 });
