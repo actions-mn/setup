@@ -50,7 +50,10 @@ async function installMetanormaWithSnap(
 ): Promise<void> {
   core.info('Installing Metanorma via Snap');
 
-  const cmd = ['sudo', 'snap', 'install', 'metanorma'];
+  // Check if sudo is available (containers might not have it)
+  const hasSudo = await checkCommandExists('sudo');
+
+  const cmd = hasSudo ? ['sudo', 'snap', 'install', 'metanorma'] : ['snap', 'install', 'metanorma'];
 
   if (version) {
     cmd.push(`--channel=${version}/${snapChannel}`, '--classic');
@@ -58,7 +61,21 @@ async function installMetanormaWithSnap(
 
   const statusCode = await exec.exec(cmd.join(' '), [], {});
   if (statusCode !== 0) {
-    throw new Error(`Snap installation failed with exit code ${statusCode}`);
+    if (!hasSudo) {
+      throw new Error(`Snap installation failed with exit code ${statusCode}. Container environment detected - ensure snap is available and has proper permissions.`);
+    } else {
+      throw new Error(`Snap installation failed with exit code ${statusCode}`);
+    }
+  }
+}
+
+async function checkCommandExists(command: string): Promise<boolean> {
+  try {
+    const cmd = IS_WINDOWS ? 'where' : 'which';
+    await exec.exec(cmd, [command], { silent: true });
+    return true;
+  } catch {
+    return false;
   }
 }
 

@@ -18,7 +18,7 @@ inputs:
     required: false
     default: 'false'
   use-bundler:
-    description: 'Setup Ruby environment with bundler cache, install Inkscape, and update Fontist. Requires Ruby 3.4+.'
+    description: 'Setup Ruby environment with bundler cache, install Inkscape, and update Fontist. Automatically detects and sets up missing tools.'
     required: false
     default: 'false'
 outputs:

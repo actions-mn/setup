@@ -171,7 +171,8 @@ describe('Environment Detection', () => {
     mockExec
       .mockResolvedValueOnce(0) // ruby exists
       .mockResolvedValueOnce(0) // bundle exists
-      .mockRejectedValueOnce(new Error('Command not found')); // inkscape missing
+      .mockRejectedValueOnce(new Error('Command not found')) // inkscape missing
+      .mockRejectedValueOnce(new Error('Command not found')); // metanorma missing
 
     const { checkEnvironmentStatus } = jest.requireActual('../src/setup-metanorma');
 
@@ -180,7 +181,8 @@ describe('Environment Detection', () => {
     expect(status).toEqual({
       ruby: true,
       bundler: true,
-      inkscape: false
+      inkscape: false,
+      metanorma: false
     });
     expect(core.info).toHaveBeenCalledWith('Checking environment status...');
   });
@@ -201,7 +203,7 @@ describe('Bundler Environment Setup', () => {
 
     await setupRubyWithBundler();
 
-    expect(core.exportVariable).toHaveBeenCalledWith('INPUT_RUBY_VERSION', '3.4');
+    expect(core.exportVariable).toHaveBeenCalledWith('INPUT_RUBY_VERSION', '3.3');
     expect(core.exportVariable).toHaveBeenCalledWith('INPUT_BUNDLER_CACHE', 'true');
     expect(core.info).toHaveBeenCalledWith('Setting up Ruby environment via ruby/setup-ruby@v1...');
   });
@@ -241,13 +243,14 @@ describe('Bundler Environment Setup', () => {
       .mockResolvedValueOnce(0) // ruby check
       .mockResolvedValueOnce(0) // bundle check
       .mockResolvedValueOnce(0) // inkscape check
+      .mockResolvedValueOnce(0) // metanorma check
       .mockResolvedValueOnce(0); // fontist update
 
     const { setupRubyEnvironment } = jest.requireActual('../src/setup-metanorma');
 
     const result = await setupRubyEnvironment();
 
-    expect(result).toBe('3.4');
+    expect(result).toBe('3.3');
     expect(mockExec).toHaveBeenCalledWith('bundle', ['exec', 'fontist', 'update']);
     expect(core.info).toHaveBeenCalledWith('Updating Fontist via bundler...');
   });
@@ -260,13 +263,14 @@ describe('Bundler Environment Setup', () => {
       .mockResolvedValueOnce(0) // ruby check
       .mockResolvedValueOnce(0) // bundle check
       .mockResolvedValueOnce(0) // inkscape check
+      .mockResolvedValueOnce(0) // metanorma check
       .mockRejectedValueOnce(new Error('Fontist update failed')); // fontist update fails
 
     const { setupRubyEnvironment } = jest.requireActual('../src/setup-metanorma');
 
     const result = await setupRubyEnvironment();
 
-    expect(result).toBe('3.4');
+    expect(result).toBe('3.3');
     expect(core.warning).toHaveBeenCalledWith('Failed to update Fontist: Fontist update failed');
     expect(core.warning).toHaveBeenCalledWith('Continuing with installation...');
   });

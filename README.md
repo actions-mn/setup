@@ -91,7 +91,7 @@ steps:
   - uses: actions/checkout@v4
   - uses: ruby/setup-ruby@v1
     with:
-      ruby-version: '3.4'
+      ruby-version: '3.3'
       bundler-cache: true
   - uses: metanorma/ci/inkscape-setup-action@main
   - uses: actions-mn/setup@main
@@ -144,7 +144,7 @@ jobs:
 | `version` | Version of metanorma to install. Leave empty for latest stable version. Supports semantic versioning. | No | `''` (latest) |
 | `snap-channel` | Snapcraft channel for Linux installations. See [snapcraft channels](https://snapcraft.io/docs/channels) for details. | No | `'stable'` |
 | `choco-prerelease` | Allow prerelease versions when installing via Chocolatey on Windows. | No | `'false'` |
-| `use-bundler` | Setup Ruby environment with bundler cache, install Inkscape, and update Fontist. Requires Ruby 3.4+. | No | `'false'` |
+| `use-bundler` | Setup Ruby environment with bundler cache, install Inkscape, and update Fontist. Automatically detects and sets up missing tools. | No | `'false'` |
 
 ## Outputs
 

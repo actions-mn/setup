@@ -10,6 +10,7 @@ interface EnvironmentStatus {
   ruby: boolean;
   bundler: boolean;
   inkscape: boolean;
+  metanorma: boolean;
 }
 
 export async function checkCommandExists(command: string): Promise<boolean> {
@@ -25,22 +26,23 @@ export async function checkCommandExists(command: string): Promise<boolean> {
 export async function checkEnvironmentStatus(): Promise<EnvironmentStatus> {
   core.info('Checking environment status...');
 
-  const [ruby, bundler, inkscape] = await Promise.all([
+  const [ruby, bundler, inkscape, metanorma] = await Promise.all([
     checkCommandExists('ruby'),
     checkCommandExists('bundle'),
-    checkCommandExists('inkscape')
+    checkCommandExists('inkscape'),
+    checkCommandExists('metanorma')
   ]);
 
-  core.info(`Environment status - Ruby: ${ruby ? '✓' : '✗'}, Bundler: ${bundler ? '✓' : '✗'}, Inkscape: ${inkscape ? '✓' : '✗'}`);
+  core.info(`Environment status - Ruby: ${ruby ? '✓' : '✗'}, Bundler: ${bundler ? '✓' : '✗'}, Inkscape: ${inkscape ? '✓' : '✗'}, Metanorma: ${metanorma ? '✓' : '✗'}`);
 
-  return { ruby, bundler, inkscape };
+  return { ruby, bundler, inkscape, metanorma };
 }
 
 export async function setupRubyWithBundler(): Promise<void> {
   core.info('Setting up Ruby environment via ruby/setup-ruby@v1...');
 
   // Set environment variables that ruby/setup-ruby@v1 expects
-  core.exportVariable('INPUT_RUBY_VERSION', '3.4');
+  core.exportVariable('INPUT_RUBY_VERSION', '3.3');
   core.exportVariable('INPUT_BUNDLER_CACHE', 'true');
 
   try {
@@ -112,7 +114,7 @@ export async function setupRubyEnvironment(): Promise<string> {
     core.warning('Continuing with installation...');
   }
 
-  return '3.4';
+  return '3.3';
 }
 
 async function run() {
@@ -124,17 +126,32 @@ async function run() {
 
     let ruby_version = '';
 
+    // Check if metanorma is already available (e.g., in containers)
+    const metanormaAvailable = await checkCommandExists('metanorma');
+
     // Handle Ruby setup if use-bundler is enabled
     if (use_bundler) {
       ruby_version = await setupRubyEnvironment();
       core.setOutput('ruby-version', ruby_version);
     }
 
-    await installMetanormaVersion(version, snap_channel, choco_prerelease);
+    // Only install metanorma if not already available
+    if (!metanormaAvailable) {
+      core.info('Metanorma not detected, installing...');
+      await installMetanormaVersion(version, snap_channel, choco_prerelease);
+    } else {
+      core.info('Metanorma already available, skipping installation');
+      // Still try to get the version for output
+      try {
+        await exec.exec('metanorma', ['--version'], { silent: true });
+      } catch {
+        // Ignore version check failures
+      }
+    }
 
     // Set outputs
     core.setOutput('version', version || 'latest');
-    core.setOutput('cache-hit', 'false'); // TODO: Implement caching
+    core.setOutput('cache-hit', metanormaAvailable ? 'true' : 'false');
   } catch (error) {
     core.setFailed(error instanceof Error ? error.message : String(error));
   }
