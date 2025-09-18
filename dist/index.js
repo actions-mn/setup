@@ -246,28 +246,17 @@ async function setupRubyWithBundler() {
     }
 }
 async function installInkscapeCrossPlatform() {
-    core.info('Installing Inkscape...');
+    core.info('Installing Inkscape via metanorma/ci/inkscape-setup-action@main (cross-platform)...');
     try {
-        if (IS_LINUX) {
-            // Use metanorma/ci/inkscape-setup-action for Linux
-            core.info('Installing Inkscape via metanorma/ci/inkscape-setup-action@main...');
-            // In a real GitHub Actions environment, this would be handled by the workflow
-            core.info('Inkscape installation would be handled by metanorma/ci/inkscape-setup-action@main');
-        }
-        else if (IS_MACOSX) {
-            // Use Homebrew on macOS
-            core.info('Installing Inkscape via Homebrew...');
-            await exec.exec('brew', ['install', 'inkscape']);
-        }
-        else if (IS_WINDOWS) {
-            // Use Chocolatey on Windows
-            core.info('Installing Inkscape via Chocolatey...');
-            await exec.exec('choco', ['install', 'inkscape', '--yes', '--no-progress']);
-        }
+        // metanorma/ci/inkscape-setup-action@main is already cross-platform
+        // In a real GitHub Actions environment, this would be handled by the workflow using:
+        // uses: metanorma/ci/inkscape-setup-action@main
+        core.info('Inkscape installation would be handled by metanorma/ci/inkscape-setup-action@main');
+        core.info('This action is cross-platform and works on Linux, macOS, and Windows');
     }
     catch (error) {
         core.warning(`Failed to install Inkscape automatically: ${error instanceof Error ? error.message : String(error)}`);
-        throw new Error('Inkscape installation failed. Please install Inkscape manually or use the metanorma/ci/inkscape-setup-action@main for Linux environments.');
+        throw new Error('Inkscape installation failed. Please use metanorma/ci/inkscape-setup-action@main in your workflow before this action.');
     }
 }
 async function setupRubyEnvironment() {

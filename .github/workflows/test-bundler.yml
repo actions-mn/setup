@@ -51,17 +51,8 @@ jobs:
           bundler-cache: true
 
       # Install Inkscape manually (to test our auto-setup logic)
-      - name: Install Inkscape (Linux)
-        if: runner.os == 'Linux'
+      - name: Install Inkscape (cross-platform)
         uses: metanorma/ci/inkscape-setup-action@main
-
-      - name: Install Inkscape (macOS)
-        if: runner.os == 'macOS'
-        run: brew install inkscape
-
-      - name: Install Inkscape (Windows)
-        if: runner.os == 'Windows'
-        run: choco install inkscape --yes --no-progress
 
       # Test the enhanced use-bundler functionality
       - name: Test setup-metanorma with use-bundler

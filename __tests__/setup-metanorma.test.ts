@@ -208,32 +208,16 @@ describe('Bundler Environment Setup', () => {
     expect(core.info).toHaveBeenCalledWith('Setting up Ruby environment via ruby/setup-ruby@v1...');
   });
 
-  it('should install Inkscape on different platforms', async () => {
-    const mockExec = exec.exec as jest.Mock;
-    mockExec.mockResolvedValue(0);
-
+  it('should install Inkscape via cross-platform action', async () => {
     const { installInkscapeCrossPlatform } = jest.requireActual('../src/setup-metanorma');
 
     await installInkscapeCrossPlatform();
 
-    if (IS_LINUX) {
-      expect(core.info).toHaveBeenCalledWith('Installing Inkscape via metanorma/ci/inkscape-setup-action@main...');
-    } else if (IS_MACOSX) {
-      expect(mockExec).toHaveBeenCalledWith('brew', ['install', 'inkscape']);
-    } else if (IS_WINDOWS) {
-      expect(mockExec).toHaveBeenCalledWith('choco', ['install', 'inkscape', '--yes', '--no-progress']);
-    }
+    expect(core.info).toHaveBeenCalledWith('Installing Inkscape via metanorma/ci/inkscape-setup-action@main (cross-platform)...');
+    expect(core.info).toHaveBeenCalledWith('Inkscape installation would be handled by metanorma/ci/inkscape-setup-action@main');
+    expect(core.info).toHaveBeenCalledWith('This action is cross-platform and works on Linux, macOS, and Windows');
   });
 
-  it('should handle Inkscape installation failures gracefully', async () => {
-    const mockExec = exec.exec as jest.Mock;
-    mockExec.mockRejectedValue(new Error('Installation failed'));
-
-    const { installInkscapeCrossPlatform } = jest.requireActual('../src/setup-metanorma');
-
-    await expect(installInkscapeCrossPlatform()).rejects.toThrow('Inkscape installation failed');
-    expect(core.warning).toHaveBeenCalledWith('Failed to install Inkscape automatically: Installation failed');
-  });
 
   it('should update Fontist successfully', async () => {
     const mockExec = exec.exec as jest.Mock;
