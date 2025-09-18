@@ -47,7 +47,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3'
+          ruby-version: '3.4'
           bundler-cache: true
 
       # Install Inkscape manually (to test our auto-setup logic)
@@ -165,7 +165,7 @@ jobs:
           apt-get install -y -qq curl build-essential
           curl -sSL https://rvm.io/mpapis.asc | gpg --import -
           curl -sSL https://rvm.io/pkuczynski.asc | gpg --import -
-          curl -L https://get.rvm.io | bash -s stable --ruby=3.3
+          curl -L https://get.rvm.io | bash -s stable --ruby=3.4
           source ~/.rvm/scripts/rvm
           gem install bundler
 

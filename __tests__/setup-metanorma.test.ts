@@ -211,7 +211,7 @@ describe('Bundler Environment Setup', () => {
 
     await setupRubyWithBundler();
 
-    expect(core.exportVariable).toHaveBeenCalledWith('INPUT_RUBY_VERSION', '3.3');
+    expect(core.exportVariable).toHaveBeenCalledWith('INPUT_RUBY_VERSION', '3.4');
     expect(core.exportVariable).toHaveBeenCalledWith('INPUT_BUNDLER_CACHE', 'true');
     expect(core.info).toHaveBeenCalledWith('Setting up Ruby environment via ruby/setup-ruby@v1...');
   });
@@ -242,7 +242,7 @@ describe('Bundler Environment Setup', () => {
 
     const result = await setupRubyEnvironment();
 
-    expect(result).toBe('3.3');
+    expect(result).toBe('3.4');
     expect(mockExec).toHaveBeenCalledWith('bundle', ['exec', 'fontist', 'update']);
     expect(core.info).toHaveBeenCalledWith('Updating Fontist via bundler...');
   });
@@ -262,7 +262,7 @@ describe('Bundler Environment Setup', () => {
 
     const result = await setupRubyEnvironment();
 
-    expect(result).toBe('3.3');
+    expect(result).toBe('3.4');
     expect(core.warning).toHaveBeenCalledWith('Failed to update Fontist: Fontist update failed');
     expect(core.warning).toHaveBeenCalledWith('Continuing with installation...');
   });

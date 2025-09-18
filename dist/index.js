@@ -231,7 +231,7 @@ async function checkEnvironmentStatus() {
 async function setupRubyWithBundler() {
     core.info('Setting up Ruby environment via ruby/setup-ruby@v1...');
     // Set environment variables that ruby/setup-ruby@v1 expects
-    core.exportVariable('INPUT_RUBY_VERSION', '3.3');
+    core.exportVariable('INPUT_RUBY_VERSION', '3.4');
     core.exportVariable('INPUT_BUNDLER_CACHE', 'true');
     try {
         // In GitHub Actions, we need to use the actions toolkit to call other actions
@@ -287,7 +287,7 @@ async function setupRubyEnvironment() {
         core.warning(`Failed to update Fontist: ${error instanceof Error ? error.message : String(error)}`);
         core.warning('Continuing with installation...');
     }
-    return '3.3';
+    return '3.4';
 }
 async function run() {
     try {

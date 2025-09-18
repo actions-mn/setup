@@ -42,7 +42,7 @@ export async function setupRubyWithBundler(): Promise<void> {
   core.info('Setting up Ruby environment via ruby/setup-ruby@v1...');
 
   // Set environment variables that ruby/setup-ruby@v1 expects
-  core.exportVariable('INPUT_RUBY_VERSION', '3.3');
+  core.exportVariable('INPUT_RUBY_VERSION', '3.4');
   core.exportVariable('INPUT_BUNDLER_CACHE', 'true');
 
   try {
@@ -105,7 +105,7 @@ export async function setupRubyEnvironment(): Promise<string> {
     core.warning('Continuing with installation...');
   }
 
-  return '3.3';
+  return '3.4';
 }
 
 async function run() {

@@ -91,7 +91,7 @@ steps:
   - uses: actions/checkout@v4
   - uses: ruby/setup-ruby@v1
     with:
-      ruby-version: '3.3'
+      ruby-version: '3.4'
       bundler-cache: true
   - uses: metanorma/ci/inkscape-setup-action@main
   - uses: actions-mn/setup@main
