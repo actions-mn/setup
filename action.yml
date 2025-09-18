@@ -2,18 +2,32 @@ name: 'Setup Metanorma'
 description: 'Set up metanorma toolchain and add the command-line tools to the PATH'
 author: 'Metanorma'
 branding:
-  icon: 'book-open'  
+  icon: 'book-open'
   color: 'blue'
-inputs: 
+inputs:
   version:
-    description: 'Version of a metanorma-cli ruby gem.'
-    default: null
+    description: 'Version of metanorma to install. Leave empty for latest stable version. Supports semantic versioning (e.g., "1.7.0", "^1.7.0", ">=1.7.0").'
+    required: false
+    default: ''
   snap-channel:
-    description: 'Snapcraft channel, more details https://snapcraft.io/docs/channels'
+    description: 'Snapcraft channel for Linux installations. See https://snapcraft.io/docs/channels for details.'
+    required: false
     default: 'stable'
-  choco-prerelase:
-    description: Allow prerelases for chocolatey packages
-    default: '' # false
+  choco-prerelease:
+    description: 'Allow prerelease versions when installing via Chocolatey on Windows.'
+    required: false
+    default: 'false'
+  use-bundler:
+    description: 'Setup Ruby environment with bundler cache, install Inkscape, and update Fontist. Requires Ruby 3.4+.'
+    required: false
+    default: 'false'
+outputs:
+  version:
+    description: 'The version of metanorma that was installed'
+  cache-hit:
+    description: 'Whether the installation was restored from cache'
+  ruby-version:
+    description: 'The version of Ruby that was set up (only when use-bundler is true)'
 runs:
   using: 'node20'
   main: 'dist/index.js'

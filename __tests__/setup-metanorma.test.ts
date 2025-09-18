@@ -2,23 +2,17 @@ import * as io from '@actions/io';
 import * as exec from '@actions/exec';
 import * as core from '@actions/core';
 import * as path from 'path';
-import fetch from 'node-fetch';
 
 jest.mock('@actions/exec');
 jest.mock('@actions/core');
-jest.mock('node-fetch', () =>
-  jest.fn(() => {
-    return new Promise((resolve, reject) => {
-      process.nextTick(() => {
-        resolve({
-          body: {
-            pipe: jest.fn(fs => fs.close()),
-            on: jest.fn()
-          }
-        });
-      });
-    });
-  })
+
+// Mock global fetch
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    body: {},
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(8))
+  } as any)
 );
 
 const toolDir = path.join(__dirname, 'runner', 'tools');
@@ -34,7 +28,7 @@ const IS_WINDOWS = process.platform === 'win32';
 const IS_MACOSX = process.platform === 'darwin';
 const IS_LINUX = process.platform === 'linux';
 
-describe('find-ruby', () => {
+describe('Metanorma Installation', () => {
   beforeAll(async () => {
     await io.rmRF(toolDir);
     await io.rmRF(tempDir);
@@ -51,7 +45,7 @@ describe('find-ruby', () => {
   }, 100000);
 
   it('install metanorma with null version', async () => {
-    await installMetanormaVersion(null, 'stable', false);
+    await installMetanormaVersion('', 'stable', false);
     let cmd: string | null = null;
     if (IS_MACOSX) {
       cmd = 'brew install metanorma/metanorma/metanorma';
@@ -101,7 +95,7 @@ describe('find-ruby', () => {
   });
 
   it('install metanorma allow --pre', async () => {
-    await installMetanormaVersion(null, 'stable', true);
+    await installMetanormaVersion('', 'stable', true);
 
     let cmd: string | null = null;
     if (IS_MACOSX) {
@@ -131,5 +125,149 @@ describe('find-ruby', () => {
     expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
     expect(exec.exec).toHaveReturnedWith(Promise.resolve(0));
     expect(core.addPath).not.toBeCalled();
+  });
+});
+
+describe('Environment Detection', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should detect commands correctly on different platforms', async () => {
+    const mockExec = exec.exec as jest.Mock;
+
+    // Mock successful command detection
+    mockExec.mockResolvedValue(0);
+
+    // Import the function we want to test
+    const { checkCommandExists } = jest.requireActual('../src/setup-metanorma');
+
+    const result = await checkCommandExists('ruby');
+    expect(result).toBe(true);
+
+    if (IS_WINDOWS) {
+      expect(mockExec).toHaveBeenCalledWith('where', ['ruby'], { silent: true });
+    } else {
+      expect(mockExec).toHaveBeenCalledWith('which', ['ruby'], { silent: true });
+    }
+  });
+
+  it('should return false when command does not exist', async () => {
+    const mockExec = exec.exec as jest.Mock;
+
+    // Mock command not found
+    mockExec.mockRejectedValue(new Error('Command not found'));
+
+    const { checkCommandExists } = jest.requireActual('../src/setup-metanorma');
+
+    const result = await checkCommandExists('nonexistent-command');
+    expect(result).toBe(false);
+  });
+
+  it('should check environment status for all required tools', async () => {
+    const mockExec = exec.exec as jest.Mock;
+
+    // Mock different command availability scenarios
+    mockExec
+      .mockResolvedValueOnce(0) // ruby exists
+      .mockResolvedValueOnce(0) // bundle exists
+      .mockRejectedValueOnce(new Error('Command not found')); // inkscape missing
+
+    const { checkEnvironmentStatus } = jest.requireActual('../src/setup-metanorma');
+
+    const status = await checkEnvironmentStatus();
+
+    expect(status).toEqual({
+      ruby: true,
+      bundler: true,
+      inkscape: false
+    });
+    expect(core.info).toHaveBeenCalledWith('Checking environment status...');
+  });
+});
+
+describe('Bundler Environment Setup', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should setup Ruby environment when not available', async () => {
+    const mockExec = exec.exec as jest.Mock;
+
+    // Mock Ruby and bundler being available after setup
+    mockExec.mockResolvedValue(0);
+
+    const { setupRubyWithBundler } = jest.requireActual('../src/setup-metanorma');
+
+    await setupRubyWithBundler();
+
+    expect(core.exportVariable).toHaveBeenCalledWith('INPUT_RUBY_VERSION', '3.4');
+    expect(core.exportVariable).toHaveBeenCalledWith('INPUT_BUNDLER_CACHE', 'true');
+    expect(core.info).toHaveBeenCalledWith('Setting up Ruby environment via ruby/setup-ruby@v1...');
+  });
+
+  it('should install Inkscape on different platforms', async () => {
+    const mockExec = exec.exec as jest.Mock;
+    mockExec.mockResolvedValue(0);
+
+    const { installInkscapeCrossPlatform } = jest.requireActual('../src/setup-metanorma');
+
+    await installInkscapeCrossPlatform();
+
+    if (IS_LINUX) {
+      expect(core.info).toHaveBeenCalledWith('Installing Inkscape via metanorma/ci/inkscape-setup-action@main...');
+    } else if (IS_MACOSX) {
+      expect(mockExec).toHaveBeenCalledWith('brew', ['install', 'inkscape']);
+    } else if (IS_WINDOWS) {
+      expect(mockExec).toHaveBeenCalledWith('choco', ['install', 'inkscape', '--yes', '--no-progress']);
+    }
+  });
+
+  it('should handle Inkscape installation failures gracefully', async () => {
+    const mockExec = exec.exec as jest.Mock;
+    mockExec.mockRejectedValue(new Error('Installation failed'));
+
+    const { installInkscapeCrossPlatform } = jest.requireActual('../src/setup-metanorma');
+
+    await expect(installInkscapeCrossPlatform()).rejects.toThrow('Inkscape installation failed');
+    expect(core.warning).toHaveBeenCalledWith('Failed to install Inkscape automatically: Installation failed');
+  });
+
+  it('should update Fontist successfully', async () => {
+    const mockExec = exec.exec as jest.Mock;
+
+    // Mock environment checks - all available
+    mockExec
+      .mockResolvedValueOnce(0) // ruby check
+      .mockResolvedValueOnce(0) // bundle check
+      .mockResolvedValueOnce(0) // inkscape check
+      .mockResolvedValueOnce(0); // fontist update
+
+    const { setupRubyEnvironment } = jest.requireActual('../src/setup-metanorma');
+
+    const result = await setupRubyEnvironment();
+
+    expect(result).toBe('3.4');
+    expect(mockExec).toHaveBeenCalledWith('bundle', ['exec', 'fontist', 'update']);
+    expect(core.info).toHaveBeenCalledWith('Updating Fontist via bundler...');
+  });
+
+  it('should continue when Fontist update fails', async () => {
+    const mockExec = exec.exec as jest.Mock;
+
+    // Mock environment checks - all available, but fontist update fails
+    mockExec
+      .mockResolvedValueOnce(0) // ruby check
+      .mockResolvedValueOnce(0) // bundle check
+      .mockResolvedValueOnce(0) // inkscape check
+      .mockRejectedValueOnce(new Error('Fontist update failed')); // fontist update fails
+
+    const { setupRubyEnvironment } = jest.requireActual('../src/setup-metanorma');
+
+    const result = await setupRubyEnvironment();
+
+    expect(result).toBe('3.4');
+    expect(core.warning).toHaveBeenCalledWith('Failed to update Fontist: Fontist update failed');
+    expect(core.warning).toHaveBeenCalledWith('Continuing with installation...');
   });
 });

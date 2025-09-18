@@ -2,94 +2,124 @@ import * as core from '@actions/core';
 import * as exec from '@actions/exec';
 import * as tc from '@actions/tool-cache';
 import * as fs from 'fs';
-import fetch from 'node-fetch';
 
 const IS_WINDOWS = process.platform === 'win32';
 const IS_MACOSX = process.platform === 'darwin';
 const IS_LINUX = process.platform === 'linux';
 
-async function download(url: string, path: string) {
+async function download(url: string, path: string): Promise<void> {
   const res = await fetch(url);
-  await new Promise((resolve, reject) => {
-    const fileStream = fs.createWriteStream(path);
-    if (res.body) {
-      res.body.pipe(fileStream);
-      res.body.on('error', err => {
-        reject(err);
-      });
-      fileStream.on('finish', function() {
-        resolve();
-      });
-    } else {
-      reject('Missing body in response');
-    }
-  });
+  if (!res.ok) {
+    throw new Error(`Failed to download ${url}: ${res.status} ${res.statusText}`);
+  }
+
+  if (!res.body) {
+    throw new Error('Missing body in response');
+  }
+
+  const buffer = await res.arrayBuffer();
+  fs.writeFileSync(path, new Uint8Array(buffer));
 }
 
-export async function installMetanormaVersion(
+async function installMetanormaWithBrew(version: string | null): Promise<void> {
+  core.info('Installing Metanorma via Homebrew');
+
+  const cmd = ['brew', 'install'];
+
+  if (version) {
+    const formulaUrl =
+      'https://raw.githubusercontent.com/metanorma/homebrew-metanorma/' +
+      `v${version}/Formula/metanorma.rb`;
+
+    core.info(`Downloading Homebrew formula for version ${version}`);
+    await download(formulaUrl, 'metanorma.rb');
+    cmd.push('--formula', 'metanorma.rb');
+  } else {
+    cmd.push('metanorma/metanorma/metanorma');
+  }
+
+  const statusCode = await exec.exec(cmd.join(' '), [], {});
+  if (statusCode !== 0) {
+    throw new Error(`Homebrew installation failed with exit code ${statusCode}`);
+  }
+}
+
+async function installMetanormaWithSnap(
   version: string | null,
-  snap_channel: string,
-  choco_prerelase: boolean
-) {
-  let cmds: string[] = [];
-  let options: exec.ExecOptions = {};
-  let ignoreFailure: boolean = false;
+  snapChannel: string
+): Promise<void> {
+  core.info('Installing Metanorma via Snap');
 
-  if (IS_MACOSX) {
-    let cmd = ['brew', 'install'];
-    if (version) {
-      let formulaUrl =
-        'https://raw.githubusercontent.com/metanorma/homebrew-metanorma/' +
-        `v${version}/Formula/metanorma.rb`;
-      await download(formulaUrl, 'metanorma.rb');
-      cmd.push('--formula');
-      cmd.push('metanorma.rb');
+  const cmd = ['sudo', 'snap', 'install', 'metanorma'];
+
+  if (version) {
+    cmd.push(`--channel=${version}/${snapChannel}`, '--classic');
+  }
+
+  const statusCode = await exec.exec(cmd.join(' '), [], {});
+  if (statusCode !== 0) {
+    throw new Error(`Snap installation failed with exit code ${statusCode}`);
+  }
+}
+
+async function installMetanormaWithChocolatey(
+  version: string | null,
+  allowPrerelease: boolean
+): Promise<void> {
+  core.info('Installing Metanorma via Chocolatey');
+
+  const cmd = ['choco', 'install', 'metanorma', '--yes', '--no-progress'];
+  let ignoreFailure = false;
+
+  if (allowPrerelease) {
+    cmd.push('--pre');
+  }
+
+  if (version) {
+    cmd.push('--version');
+    if (allowPrerelease) {
+      cmd.push(`${version}-pre`);
     } else {
-      cmd.push('metanorma/metanorma/metanorma');
+      cmd.push(version);
     }
-    cmds.push(cmd.join(' '));
-  } else if (IS_LINUX) {
-    let cmd = ['sudo', 'snap', 'install', 'metanorma'];
-    if (version) {
-      cmd.push(`--channel=${version}/${snap_channel}`, '--classic');
-    }
-    cmds.push(cmd.join(' '));
-  } else if (IS_WINDOWS) {
-    let cmd = ['choco', 'install', 'metanorma', '--yes', '--no-progress'];
-    if (choco_prerelase) {
-      cmd.push('--pre');
-    }
-    if (version) {
-      cmd.push('--version');
-      if (choco_prerelase) {
-        cmd.push(`${version}-pre`);
-      } else {
-        cmd.push(version);
-      }
-    }
+  }
 
-    options.ignoreReturnCode = true;
-    options.listeners = {
-      stdout: data => {
+  const options: exec.ExecOptions = {
+    ignoreReturnCode: true,
+    listeners: {
+      stdout: (data: any) => {
         if (!ignoreFailure) {
           ignoreFailure = data.toString().includes(' - git.install (exited 1)');
         }
       }
-    };
-
-    // workaround for 3.10-3.11 installation issues
-    cmds.push('choco install python3 --version 3.9.13 --yes --no-progress');
-    cmds.push(cmd.join(' '));
-  }
-
-  if (cmds.length) {
-    for (const cmd of cmds) {
-      let statusCode = await exec.exec(cmd, [], options);
-      if (statusCode != 0 && !ignoreFailure) {
-        throw new Error(`Command ${cmd} failed with exit code ${statusCode}`);
-      }
     }
+  };
+
+  const statusCode = await exec.exec(cmd.join(' '), [], options);
+  if (statusCode !== 0 && !ignoreFailure) {
+    throw new Error(`Chocolatey installation failed with exit code ${statusCode}`);
+  }
+}
+
+export async function installMetanormaVersion(
+  version: string,
+  snap_channel: string,
+  choco_prerelease: boolean
+): Promise<void> {
+  // Handle empty string as null for backward compatibility
+  const targetVersion = version && version.trim() !== '' ? version.trim() : null;
+
+  core.info(`Installing Metanorma${targetVersion ? ` version ${targetVersion}` : ' (latest)'} on ${process.platform}`);
+
+  if (IS_MACOSX) {
+    await installMetanormaWithBrew(targetVersion);
+  } else if (IS_LINUX) {
+    await installMetanormaWithSnap(targetVersion, snap_channel);
+  } else if (IS_WINDOWS) {
+    await installMetanormaWithChocolatey(targetVersion, choco_prerelease);
   } else {
     throw new Error(`Unsupported platform ${process.platform}`);
   }
+
+  core.info('Metanorma installation completed successfully');
 }

@@ -1,0 +1,225 @@
+name: Test Enhanced use-bundler Feature
+
+on:
+  push:
+    branches: [ main, feature/enhanced-bundler ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.head_ref || github.ref_name }}"
+  cancel-in-progress: true
+
+jobs:
+  test-bundler-native-os:
+    name: Test use-bundler on ${{ matrix.os }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: "Ubuntu"
+            runs-on: ubuntu-latest
+          - os: "macOS"
+            runs-on: macos-latest
+          - os: "Windows"
+            runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Create a minimal Gemfile for testing
+      - name: Create test Gemfile
+        shell: bash
+        run: |
+          cat > Gemfile << 'EOF'
+          source 'https://rubygems.org'
+          gem 'metanorma-cli'
+          gem 'fontist'
+          EOF
+
+      # Setup Ruby manually (to test our auto-setup logic)
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      # Install Inkscape manually (to test our auto-setup logic)
+      - name: Install Inkscape (Linux)
+        if: runner.os == 'Linux'
+        uses: metanorma/ci/inkscape-setup-action@main
+
+      - name: Install Inkscape (macOS)
+        if: runner.os == 'macOS'
+        run: brew install inkscape
+
+      - name: Install Inkscape (Windows)
+        if: runner.os == 'Windows'
+        run: choco install inkscape --yes --no-progress
+
+      # Test the enhanced use-bundler functionality
+      - name: Test setup-metanorma with use-bundler
+        uses: ./
+        with:
+          use-bundler: true
+
+      # Verify the setup worked
+      - name: Verify Metanorma installation
+        shell: bash
+        run: |
+          # Check if metanorma command is available
+          if command -v metanorma >/dev/null 2>&1; then
+            echo "✅ Metanorma command found"
+            metanorma version
+          else
+            echo "❌ Metanorma command not found"
+            exit 1
+          fi
+
+      - name: Verify Ruby environment
+        shell: bash
+        run: |
+          # Check Ruby and bundler
+          ruby --version
+          bundle --version
+
+          # Check if bundler can install gems
+          bundle install --quiet
+
+          # Try to run metanorma via bundler
+          bundle exec metanorma version
+
+      - name: Verify Inkscape installation
+        shell: bash
+        run: |
+          # Check if inkscape is available
+          if command -v inkscape >/dev/null 2>&1; then
+            echo "✅ Inkscape found"
+            inkscape --version
+          else
+            echo "❌ Inkscape not found"
+            exit 1
+          fi
+
+      - name: Verify Fontist functionality
+        shell: bash
+        run: |
+          # Test fontist via bundler
+          bundle exec fontist --version
+
+      - name: Test document compilation (basic)
+        shell: bash
+        run: |
+          # Create a minimal test document
+          cat > test.adoc << 'EOF'
+          = Test Document
+
+          This is a test document to verify the setup works.
+
+          == Section 1
+
+          Basic text content.
+          EOF
+
+          # Try to compile it
+          bundle exec metanorma test.adoc -t generic -x html
+
+          # Check if output was generated
+          if [ -f "test.html" ]; then
+            echo "✅ Document compilation successful"
+          else
+            echo "❌ Document compilation failed"
+            exit 1
+          fi
+
+  test-bundler-containers:
+    name: Test use-bundler in ${{ matrix.name }} container
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Metanorma"
+            container: "metanorma/metanorma:latest"
+            needs-setup: false
+          - name: "Ubuntu"
+            container: "ubuntu:latest"
+            needs-setup: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Create a minimal Gemfile for testing
+      - name: Create test Gemfile
+        run: |
+          cat > Gemfile << 'EOF'
+          source 'https://rubygems.org'
+          gem 'metanorma-cli'
+          gem 'fontist'
+          EOF
+
+      # Setup Ruby if needed (Ubuntu container doesn't have Ruby)
+      - name: Setup Ruby (Ubuntu container)
+        if: matrix.needs-setup
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq curl build-essential
+          curl -sSL https://rvm.io/mpapis.asc | gpg --import -
+          curl -sSL https://rvm.io/pkuczynski.asc | gpg --import -
+          curl -L https://get.rvm.io | bash -s stable --ruby=3.4
+          source ~/.rvm/scripts/rvm
+          gem install bundler
+
+      # Test the enhanced use-bundler functionality
+      - name: Test setup-metanorma with use-bundler
+        uses: ./
+        with:
+          use-bundler: true
+
+      # Verify the setup worked
+      - name: Verify tools are functional
+        run: |
+          # Verify all tools are functional
+          ruby --version
+          bundle --version
+          metanorma version
+          bundle exec fontist --version
+
+  test-bundler-minimal-setup:
+    name: Test minimal use-bundler setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Create Gemfile without prior setup
+      - name: Create test Gemfile
+        run: |
+          cat > Gemfile << 'EOF'
+          source 'https://rubygems.org'
+          gem 'metanorma-cli'
+          gem 'fontist'
+          EOF
+
+      # Test the action without any prior Ruby setup
+      # This should trigger the auto-setup functionality
+      - name: Test setup-metanorma with automatic environment setup
+        uses: ./
+        with:
+          use-bundler: true
+
+      - name: Verify auto-setup worked
+        run: |
+          # All these should be available after auto-setup
+          ruby --version
+          bundle --version
+          metanorma version
+          bundle exec fontist --version

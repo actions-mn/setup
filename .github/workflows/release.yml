@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'yarn'
+
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile
+
+    - name: Build action
+      run: yarn build
+
+    - name: Package action
+      run: |
+        # Ensure dist directory exists and is committed
+        git add dist/
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git diff --staged --quiet || git commit -m "Update dist for release ${{ github.ref_name }}"
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          ## Changes in this Release
+
+          See the [CHANGELOG](CHANGELOG.md) for detailed information about this release.
+
+          ## Usage
+
+          ```yaml
+          - uses: actions-mn/setup@${{ github.ref_name }}
+            with:
+              version: 'latest'
+          ```
+        draft: false
+        prerelease: false
+
+  update-major-tag:
+    name: Update Major Version Tag
+    runs-on: ubuntu-latest
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Update major version tag
+      run: |
+        # Extract major version from tag (e.g., v1.2.3 -> v1)
+        TAG=${GITHUB_REF#refs/tags/}
+        MAJOR_VERSION=$(echo $TAG | cut -d. -f1)
+
+        # Update or create the major version tag
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag -fa $MAJOR_VERSION -m "Update $MAJOR_VERSION to $TAG"
+        git push origin $MAJOR_VERSION --force
