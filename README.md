@@ -32,7 +32,7 @@ steps:
   - uses: actions/checkout@v4
   - uses: actions-mn/setup@main
     with:
-      version: '1.13.0'
+      version: '1.13.6'  # Use platform-specific versions: 1.13.6 (Snap/Choco), 1.13.2 (Homebrew)
   - name: Compile document
     run: metanorma document.adoc
 ```
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions-mn/setup@main
         with:
-          version: '1.13.1'
+          version: '1.13.6'
       - name: Compile document
         run: metanorma document.adoc
 ```
@@ -159,9 +159,15 @@ jobs:
 You can specify versions in several ways:
 
 - **Latest**: Leave `version` empty or use `'latest'`
-- **Exact version**: `'1.13.1'`
+- **Exact version**: `'1.13.6'` (Snap/Chocolatey) or `'1.13.2'` (Homebrew)
 - **Semantic range**: `'^1.13.0'` (compatible with 1.13.x)
 - **Minimum version**: `'>=1.13.0'`
+
+**Note:** Available versions vary by package manager:
+- **Snap (Linux)**: 1.13.6 latest
+- **Chocolatey (Windows)**: 1.13.6 latest
+- **Homebrew (macOS)**: 1.13.2 latest
+- **Bundler (Gemfile)**: 1.13.6 latest
 
 ## Platform-Specific Notes
 

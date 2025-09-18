@@ -74,21 +74,29 @@ describe('Metanorma Installation', () => {
     expect(core.addPath).not.toBeCalled();
   });
 
-  it('install metanorma with version 1.13.1', async () => {
-    await installMetanormaVersion('1.13.1', 'stable', false);
-
+  it('install metanorma with platform-specific versions', async () => {
+    // Test with platform-specific available versions
+    let version: string;
     let cmd: string | null = null;
+
     if (IS_MACOSX) {
+      version = '1.13.2'; // Homebrew version
+      await installMetanormaVersion(version, 'stable', false);
       expect(fetch).toHaveBeenCalledWith(
         'https://raw.githubusercontent.com/metanorma/homebrew-metanorma/' +
-          'v1.13.1/Formula/metanorma.rb'
+          'v1.13.2/Formula/metanorma.rb'
       );
       cmd = 'brew install --formula metanorma.rb';
     } else if (IS_LINUX) {
-      cmd = 'sudo snap install metanorma --channel=1.13.1/stable --classic';
+      version = '1.13.6'; // Snap version
+      await installMetanormaVersion(version, 'stable', false);
+      cmd = 'sudo snap install metanorma --channel=1.13.6/stable --classic';
     } else if (IS_WINDOWS) {
-      cmd = 'choco install metanorma --yes --no-progress --version 1.13.1';
+      version = '1.13.6'; // Chocolatey version
+      await installMetanormaVersion(version, 'stable', false);
+      cmd = 'choco install metanorma --yes --no-progress --version 1.13.6';
     }
+
     expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
     expect(exec.exec).toHaveReturnedWith(Promise.resolve(0));
     expect(core.addPath).not.toBeCalled();
@@ -111,16 +119,16 @@ describe('Metanorma Installation', () => {
   });
 
   it('install metanorma snap edge channel', async () => {
-    await installMetanormaVersion('1.13.1', 'edge', true);
+    await installMetanormaVersion('1.13.6', 'edge', true);
 
     let cmd: string | null = null;
     if (IS_MACOSX) {
       cmd = 'brew install --formula metanorma.rb';
     } else if (IS_LINUX) {
-      cmd = 'sudo snap install metanorma --channel=1.13.1/edge --classic';
+      cmd = 'sudo snap install metanorma --channel=1.13.6/edge --classic';
     } else if (IS_WINDOWS) {
       cmd =
-        'choco install metanorma --yes --no-progress --pre --version 1.13.1-pre';
+        'choco install metanorma --yes --no-progress --pre --version 1.13.6-pre';
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
     expect(exec.exec).toHaveReturnedWith(Promise.resolve(0));
