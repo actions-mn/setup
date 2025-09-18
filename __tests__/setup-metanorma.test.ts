@@ -74,20 +74,20 @@ describe('Metanorma Installation', () => {
     expect(core.addPath).not.toBeCalled();
   });
 
-  it('install metanorma with version 1.2.3', async () => {
-    await installMetanormaVersion('1.2.3', 'stable', false);
+  it('install metanorma with version 1.13.1', async () => {
+    await installMetanormaVersion('1.13.1', 'stable', false);
 
     let cmd: string | null = null;
     if (IS_MACOSX) {
       expect(fetch).toHaveBeenCalledWith(
         'https://raw.githubusercontent.com/metanorma/homebrew-metanorma/' +
-          'v1.2.3/Formula/metanorma.rb'
+          'v1.13.1/Formula/metanorma.rb'
       );
       cmd = 'brew install --formula metanorma.rb';
     } else if (IS_LINUX) {
-      cmd = 'sudo snap install metanorma --channel=1.2.3/stable --classic';
+      cmd = 'sudo snap install metanorma --channel=1.13.1/stable --classic';
     } else if (IS_WINDOWS) {
-      cmd = 'choco install metanorma --yes --no-progress --version 1.2.3';
+      cmd = 'choco install metanorma --yes --no-progress --version 1.13.1';
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
     expect(exec.exec).toHaveReturnedWith(Promise.resolve(0));
@@ -111,16 +111,16 @@ describe('Metanorma Installation', () => {
   });
 
   it('install metanorma snap edge channel', async () => {
-    await installMetanormaVersion('3.2.1', 'edge', true);
+    await installMetanormaVersion('1.13.1', 'edge', true);
 
     let cmd: string | null = null;
     if (IS_MACOSX) {
       cmd = 'brew install --formula metanorma.rb';
     } else if (IS_LINUX) {
-      cmd = 'sudo snap install metanorma --channel=3.2.1/edge --classic';
+      cmd = 'sudo snap install metanorma --channel=1.13.1/edge --classic';
     } else if (IS_WINDOWS) {
       cmd =
-        'choco install metanorma --yes --no-progress --pre --version 3.2.1-pre';
+        'choco install metanorma --yes --no-progress --pre --version 1.13.1-pre';
     }
     expect(exec.exec).toHaveBeenCalledWith(cmd, [], expect.anything());
     expect(exec.exec).toHaveReturnedWith(Promise.resolve(0));
