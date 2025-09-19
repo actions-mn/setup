@@ -2,9 +2,8 @@ name: test-bundler-native-os
 
 on:
   push:
-    branches: [ main, feature/enhanced-bundler ]
-  pull_request:
     branches: [ main ]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -40,7 +39,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.4'
+          ruby-version: '3.3'
           bundler-cache: true
 
       # Install Inkscape manually (to test our auto-setup logic)

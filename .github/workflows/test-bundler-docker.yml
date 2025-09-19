@@ -1,10 +1,9 @@
-name: Test Enhanced use-bundler Feature
+name: test-bundler-docker
 
 on:
   push:
-    branches: [ main, feature/enhanced-bundler ]
-  pull_request:
     branches: [ main ]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -26,8 +25,8 @@ jobs:
           - name: "Metanorma"
             container: "metanorma/metanorma:latest"
             needs-setup: false
-          - name: "Ubuntu"
-            container: "ubuntu:latest"
+          - name: "Ruby"
+            container: "ruby:3.3.7-slim-bookworm"
             needs-setup: true
 
     steps:
@@ -47,7 +46,7 @@ jobs:
         if: matrix.needs-setup
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.4'
+          ruby-version: '3.3'
           bundler-cache: true
 
       # Test the enhanced use-bundler functionality

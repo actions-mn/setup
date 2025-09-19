@@ -227,7 +227,7 @@ describe('Bundler Environment Setup', () => {
 
     expect(core.exportVariable).toHaveBeenCalledWith(
       'INPUT_RUBY_VERSION',
-      '3.4'
+      '3.3'
     );
     expect(core.exportVariable).toHaveBeenCalledWith(
       'INPUT_BUNDLER_CACHE',
@@ -271,7 +271,7 @@ describe('Bundler Environment Setup', () => {
 
     const result = await setupRubyEnvironment();
 
-    expect(result).toBe('3.4');
+    expect(result).toBe('3.3');
     expect(mockExec).toHaveBeenCalledWith('bundle', [
       'exec',
       'fontist',
@@ -295,7 +295,7 @@ describe('Bundler Environment Setup', () => {
 
     const result = await setupRubyEnvironment();
 
-    expect(result).toBe('3.4');
+    expect(result).toBe('3.3');
     expect(core.warning).toHaveBeenCalledWith(
       'Failed to update Fontist: Fontist update failed'
     );

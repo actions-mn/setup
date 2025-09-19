@@ -44,7 +44,7 @@ export async function setupRubyWithBundler(): Promise<void> {
   core.info('Setting up Ruby environment via ruby/setup-ruby@v1...');
 
   // Set environment variables that ruby/setup-ruby@v1 expects
-  core.exportVariable('INPUT_RUBY_VERSION', '3.4');
+  core.exportVariable('INPUT_RUBY_VERSION', '3.3');
   core.exportVariable('INPUT_BUNDLER_CACHE', 'true');
 
   try {
@@ -59,7 +59,7 @@ export async function setupRubyWithBundler(): Promise<void> {
     await exec.exec('bundle', ['--version']);
   } catch (error) {
     throw new Error(
-      'Ruby environment setup failed. Please ensure ruby/setup-ruby@v1 is used before this action when use-bundler is enabled, or Ruby 3.4+ with bundler is available.'
+      'Ruby environment setup failed. Please ensure ruby/setup-ruby@v1 is used before this action when use-bundler is enabled, or Ruby 3.3+ with bundler is available.'
     );
   }
 }
@@ -121,7 +121,7 @@ export async function setupRubyEnvironment(): Promise<string> {
     core.warning('Continuing with installation...');
   }
 
-  return '3.4';
+  return '3.3';
 }
 
 async function run() {
