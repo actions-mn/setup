@@ -174,21 +174,91 @@ You can specify versions in several ways:
 ### Windows
 - Uses Chocolatey package manager
 - Supports prerelease versions via `choco-prerelease` input
+- Supports version-specific installations
 
 ### macOS
-- Uses Homebrew package manager
-- Downloads specific formula versions when version is specified
+- Uses Homebrew package manager via official tap (`metanorma/metanorma/metanorma`)
+- Falls back to latest stable version when specific versions are requested (with warning)
+- Reliable installation using modern Homebrew practices
 
 ### Linux
-- Uses Snap package manager
-- Supports different channels (stable, edge, beta, candidate)
-- Installs with `--classic` confinement for specific versions
+- Uses Snap package manager with `--classic` confinement
+- Falls back to latest stable version when specific versions are requested (with warning)
+- Uses modern snap installation approach (channel versions are deprecated)
 
-# Maintainer notes
+## Development
 
-1. yes, `node_modules` need to be committed
-2. during development `node_modules` may be modified but `devDependencies` should not be committed, be careful.
+This project uses **yarn** for package management and development workflows.
 
-# License
+### Prerequisites
+
+- Node.js 20 or later
+- Yarn 1.22+ (classic)
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/actions-mn/setup.git
+cd setup
+
+# Install dependencies
+yarn install --frozen-lockfile
+```
+
+### Development Workflow
+
+```bash
+# Format code with Prettier
+yarn format
+
+# Check code formatting
+yarn format-check
+
+# Run tests
+yarn test
+
+# Build the action
+yarn build
+
+# Run all checks (format + test + build)
+yarn format && yarn test && yarn build
+```
+
+### Making Changes
+
+1. Make your changes to TypeScript source files in `src/`
+2. Update tests in `__tests__/` if needed
+3. Run `yarn format` to ensure consistent formatting
+4. Run `yarn test` to verify all tests pass
+5. Run `yarn build` to compile the action
+6. Commit all changes including the built `dist/` directory
+
+### Testing Locally
+
+The action can be tested locally by:
+1. Using act (if available): `act -j test`
+2. Creating a test workflow in a separate repository
+3. Running the individual functions via the test suite
+
+### CI/CD
+
+The project uses GitHub Actions for continuous integration:
+- **lint-and-test**: Checks formatting, runs tests, and builds
+- **test**: Tests the action across platforms
+- **test-version**: Tests version-specific installations
+- **test-bundler-***: Tests bundler integration workflows
+
+All workflows use yarn for consistency.
+
+## Maintainer Notes
+
+1. `node_modules` need to be committed for GitHub Actions
+2. During development, `node_modules` may be modified but `devDependencies` should not be committed
+3. Always use `yarn` commands, not `npm`, for consistency with CI
+4. The `dist/` directory must be committed after running `yarn build`
+5. Use `yarn format` before committing to ensure formatting compliance
+
+## License
 
 The scripts and documentation in this project are released under the [MIT License](LICENSE)

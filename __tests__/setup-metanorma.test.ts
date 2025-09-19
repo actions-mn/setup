@@ -84,7 +84,9 @@ describe('Metanorma Installation', () => {
       await installMetanormaVersion(version, 'stable', false);
       // Should warn about version not being supported and install latest
       expect(core.warning).toHaveBeenCalledWith(
-        expect.stringContaining('Specific version 1.13.2 requested, but Homebrew tap only supports latest version')
+        expect.stringContaining(
+          'Specific version 1.13.2 requested, but Homebrew tap only supports latest version'
+        )
       );
       cmd = 'brew install metanorma/metanorma/metanorma';
     } else if (IS_LINUX) {
@@ -92,7 +94,9 @@ describe('Metanorma Installation', () => {
       await installMetanormaVersion(version, 'stable', false);
       // Should warn about version not being supported and install latest
       expect(core.warning).toHaveBeenCalledWith(
-        expect.stringContaining('Specific version 1.13.6 requested, but Snap channel versions are deprecated')
+        expect.stringContaining(
+          'Specific version 1.13.6 requested, but Snap channel versions are deprecated'
+        )
       );
       cmd = 'sudo snap install metanorma --classic';
     } else if (IS_WINDOWS) {
@@ -129,13 +133,17 @@ describe('Metanorma Installation', () => {
     if (IS_MACOSX) {
       // Should warn about version not being supported and install latest
       expect(core.warning).toHaveBeenCalledWith(
-        expect.stringContaining('Specific version 1.13.6 requested, but Homebrew tap only supports latest version')
+        expect.stringContaining(
+          'Specific version 1.13.6 requested, but Homebrew tap only supports latest version'
+        )
       );
       cmd = 'brew install metanorma/metanorma/metanorma';
     } else if (IS_LINUX) {
       // Should warn about version not being supported and install latest
       expect(core.warning).toHaveBeenCalledWith(
-        expect.stringContaining('Specific version 1.13.6 requested, but Snap channel versions are deprecated')
+        expect.stringContaining(
+          'Specific version 1.13.6 requested, but Snap channel versions are deprecated'
+        )
       );
       cmd = 'sudo snap install metanorma --classic';
     } else if (IS_WINDOWS) {
