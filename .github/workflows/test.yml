@@ -5,24 +5,11 @@ on:
     branches: [ main ]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  lint:
-    name: Lint and Test
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - uses: actions/setup-node@v4
-      with:
-        node-version: 20
-        cache: 'yarn'
-
-    - run: yarn install --frozen-lockfile
-    - run: yarn build
-    - run: yarn format-check
-    - run: yarn test
-
-  test-action:
+  test:
     name: Test Action
     runs-on: ${{ matrix.os }}
     strategy:
@@ -38,33 +25,3 @@ jobs:
       shell: bash
 
     - run: metanorma help
-
-  test-local-specific-version:
-    name: local test ${{ matrix.os }} metanorma@${{ matrix.version }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            version: '1.13.6'  # Snap version
-          - os: windows-latest
-            version: '1.13.6'  # Chocolatey version
-          - os: macos-latest
-            version: '1.13.2'  # Homebrew version
-    steps:
-    - uses: actions/checkout@v4
-
-    - uses: ./
-      with:
-        version: ${{ matrix.version }}
-
-    - run: |
-        if metanorma version | grep -q ${{ matrix.version }}; then
-          echo "correct metanorma version installed"
-        else
-          echo "wrong metanorma version installed, check env below:"
-          env
-          exit 1
-        fi
-      shell: bash

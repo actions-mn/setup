@@ -1,0 +1,66 @@
+name: Test Enhanced use-bundler Feature
+
+on:
+  push:
+    branches: [ main, feature/enhanced-bundler ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.head_ref || github.ref_name }}"
+  cancel-in-progress: true
+
+jobs:
+  test-bundler-docker:
+    name: Test use-bundler in ${{ matrix.name }} container
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Metanorma"
+            container: "metanorma/metanorma:latest"
+            needs-setup: false
+          - name: "Ubuntu"
+            container: "ubuntu:latest"
+            needs-setup: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Create a minimal Gemfile for testing
+      - name: Create test Gemfile
+        run: |
+          cat > Gemfile << 'EOF'
+          source 'https://rubygems.org'
+          gem 'metanorma-cli'
+          EOF
+
+      # Setup Ruby
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      # Test the enhanced use-bundler functionality
+      - name: Test setup-metanorma with use-bundler
+        uses: ./
+        with:
+          use-bundler: true
+
+      # Verify the setup worked
+      - name: Verify tools are functional
+        run: |
+          # Verify all tools are functional
+          ruby --version
+          bundle --version
+          bundle exec metanorma version
+          bundle exec fontist help
+
