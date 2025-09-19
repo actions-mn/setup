@@ -42,8 +42,9 @@ jobs:
           gem 'metanorma-cli'
           EOF
 
-      # Setup Ruby
+      # Setup Ruby only for containers that need it
       - name: Setup Ruby
+        if: matrix.needs-setup
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4'
@@ -63,4 +64,3 @@ jobs:
           bundle --version
           bundle exec metanorma version
           bundle exec fontist help
-
