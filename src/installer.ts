@@ -10,7 +10,9 @@ const IS_LINUX = process.platform === 'linux';
 async function download(url: string, path: string): Promise<void> {
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Failed to download ${url}: ${res.status} ${res.statusText}`);
+    throw new Error(
+      `Failed to download ${url}: ${res.status} ${res.statusText}`
+    );
   }
 
   if (!res.body) {
@@ -24,23 +26,20 @@ async function download(url: string, path: string): Promise<void> {
 async function installMetanormaWithBrew(version: string | null): Promise<void> {
   core.info('Installing Metanorma via Homebrew');
 
-  const cmd = ['brew', 'install'];
-
   if (version) {
-    const formulaUrl =
-      'https://raw.githubusercontent.com/metanorma/homebrew-metanorma/' +
-      `v${version}/Formula/metanorma.rb`;
-
-    core.info(`Downloading Homebrew formula for version ${version}`);
-    await download(formulaUrl, 'metanorma.rb');
-    cmd.push('--formula', 'metanorma.rb');
-  } else {
-    cmd.push('metanorma/metanorma/metanorma');
+    core.warning(
+      `Specific version ${version} requested, but Homebrew tap only supports latest version. Installing latest from metanorma/metanorma/metanorma`
+    );
   }
+
+  // Use the official tap for reliable installation
+  const cmd = ['brew', 'install', 'metanorma/metanorma/metanorma'];
 
   const statusCode = await exec.exec(cmd.join(' '), [], {});
   if (statusCode !== 0) {
-    throw new Error(`Homebrew installation failed with exit code ${statusCode}`);
+    throw new Error(
+      `Homebrew installation failed with exit code ${statusCode}`
+    );
   }
 }
 
@@ -50,19 +49,26 @@ async function installMetanormaWithSnap(
 ): Promise<void> {
   core.info('Installing Metanorma via Snap');
 
+  if (version) {
+    core.warning(
+      `Specific version ${version} requested, but Snap channel versions are deprecated. Installing latest stable version instead.`
+    );
+  }
+
   // Check if sudo is available (containers might not have it)
   const hasSudo = await checkCommandExists('sudo');
 
-  const cmd = hasSudo ? ['sudo', 'snap', 'install', 'metanorma'] : ['snap', 'install', 'metanorma'];
-
-  if (version) {
-    cmd.push(`--channel=${version}/${snapChannel}`, '--classic');
-  }
+  // Use the working approach: install latest stable with --classic
+  const cmd = hasSudo
+    ? ['sudo', 'snap', 'install', 'metanorma', '--classic']
+    : ['snap', 'install', 'metanorma', '--classic'];
 
   const statusCode = await exec.exec(cmd.join(' '), [], {});
   if (statusCode !== 0) {
     if (!hasSudo) {
-      throw new Error(`Snap installation failed with exit code ${statusCode}. Container environment detected - ensure snap is available and has proper permissions.`);
+      throw new Error(
+        `Snap installation failed with exit code ${statusCode}. Container environment detected - ensure snap is available and has proper permissions.`
+      );
     } else {
       throw new Error(`Snap installation failed with exit code ${statusCode}`);
     }
@@ -72,7 +78,7 @@ async function installMetanormaWithSnap(
 async function checkCommandExists(command: string): Promise<boolean> {
   try {
     const cmd = IS_WINDOWS ? 'where' : 'which';
-    await exec.exec(cmd, [command], { silent: true });
+    await exec.exec(cmd, [command], {silent: true});
     return true;
   } catch {
     return false;
@@ -114,7 +120,9 @@ async function installMetanormaWithChocolatey(
 
   const statusCode = await exec.exec(cmd.join(' '), [], options);
   if (statusCode !== 0 && !ignoreFailure) {
-    throw new Error(`Chocolatey installation failed with exit code ${statusCode}`);
+    throw new Error(
+      `Chocolatey installation failed with exit code ${statusCode}`
+    );
   }
 }
 
@@ -124,9 +132,12 @@ export async function installMetanormaVersion(
   choco_prerelease: boolean
 ): Promise<void> {
   // Handle empty string as null for backward compatibility
-  const targetVersion = version && version.trim() !== '' ? version.trim() : null;
+  const targetVersion =
+    version && version.trim() !== '' ? version.trim() : null;
 
-  core.info(`Installing Metanorma${targetVersion ? ` version ${targetVersion}` : ' (latest)'} on ${process.platform}`);
+  core.info(
+    `Installing Metanorma${targetVersion ? ` version ${targetVersion}` : ' (latest)'} on ${process.platform}`
+  );
 
   if (IS_MACOSX) {
     await installMetanormaWithBrew(targetVersion);

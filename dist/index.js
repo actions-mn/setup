@@ -60,17 +60,11 @@ async function download(url, path) {
 }
 async function installMetanormaWithBrew(version) {
     core.info('Installing Metanorma via Homebrew');
-    const cmd = ['brew', 'install'];
     if (version) {
-        const formulaUrl = 'https://raw.githubusercontent.com/metanorma/homebrew-metanorma/' +
-            `v${version}/Formula/metanorma.rb`;
-        core.info(`Downloading Homebrew formula for version ${version}`);
-        await download(formulaUrl, 'metanorma.rb');
-        cmd.push('--formula', 'metanorma.rb');
+        core.warning(`Specific version ${version} requested, but Homebrew tap only supports latest version. Installing latest from metanorma/metanorma/metanorma`);
     }
-    else {
-        cmd.push('metanorma/metanorma/metanorma');
-    }
+    // Use the official tap for reliable installation
+    const cmd = ['brew', 'install', 'metanorma/metanorma/metanorma'];
     const statusCode = await exec.exec(cmd.join(' '), [], {});
     if (statusCode !== 0) {
         throw new Error(`Homebrew installation failed with exit code ${statusCode}`);
@@ -78,12 +72,15 @@ async function installMetanormaWithBrew(version) {
 }
 async function installMetanormaWithSnap(version, snapChannel) {
     core.info('Installing Metanorma via Snap');
+    if (version) {
+        core.warning(`Specific version ${version} requested, but Snap channel versions are deprecated. Installing latest stable version instead.`);
+    }
     // Check if sudo is available (containers might not have it)
     const hasSudo = await checkCommandExists('sudo');
-    const cmd = hasSudo ? ['sudo', 'snap', 'install', 'metanorma'] : ['snap', 'install', 'metanorma'];
-    if (version) {
-        cmd.push(`--channel=${version}/${snapChannel}`, '--classic');
-    }
+    // Use the working approach: install latest stable with --classic
+    const cmd = hasSudo
+        ? ['sudo', 'snap', 'install', 'metanorma', '--classic']
+        : ['snap', 'install', 'metanorma', '--classic'];
     const statusCode = await exec.exec(cmd.join(' '), [], {});
     if (statusCode !== 0) {
         if (!hasSudo) {

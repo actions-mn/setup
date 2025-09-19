@@ -50,7 +50,7 @@ describe('Metanorma Installation', () => {
     if (IS_MACOSX) {
       cmd = 'brew install metanorma/metanorma/metanorma';
     } else if (IS_LINUX) {
-      cmd = 'sudo snap install metanorma';
+      cmd = 'sudo snap install metanorma --classic';
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --no-progress';
     }
@@ -65,7 +65,7 @@ describe('Metanorma Installation', () => {
     if (IS_MACOSX) {
       cmd = 'brew install metanorma/metanorma/metanorma';
     } else if (IS_LINUX) {
-      cmd = 'sudo snap install metanorma';
+      cmd = 'sudo snap install metanorma --classic';
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --no-progress';
     }
@@ -75,22 +75,26 @@ describe('Metanorma Installation', () => {
   });
 
   it('install metanorma with platform-specific versions', async () => {
-    // Test with platform-specific available versions
+    // Test with platform-specific versions - should fall back to latest with warning
     let version: string;
     let cmd: string | null = null;
 
     if (IS_MACOSX) {
       version = '1.13.2'; // Homebrew version
       await installMetanormaVersion(version, 'stable', false);
-      expect(fetch).toHaveBeenCalledWith(
-        'https://raw.githubusercontent.com/metanorma/homebrew-metanorma/' +
-          'v1.13.2/Formula/metanorma.rb'
+      // Should warn about version not being supported and install latest
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Specific version 1.13.2 requested, but Homebrew tap only supports latest version')
       );
-      cmd = 'brew install --formula metanorma.rb';
+      cmd = 'brew install metanorma/metanorma/metanorma';
     } else if (IS_LINUX) {
       version = '1.13.6'; // Snap version
       await installMetanormaVersion(version, 'stable', false);
-      cmd = 'sudo snap install metanorma --channel=1.13.6/stable --classic';
+      // Should warn about version not being supported and install latest
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Specific version 1.13.6 requested, but Snap channel versions are deprecated')
+      );
+      cmd = 'sudo snap install metanorma --classic';
     } else if (IS_WINDOWS) {
       version = '1.13.6'; // Chocolatey version
       await installMetanormaVersion(version, 'stable', false);
@@ -109,7 +113,7 @@ describe('Metanorma Installation', () => {
     if (IS_MACOSX) {
       cmd = 'brew install metanorma/metanorma/metanorma';
     } else if (IS_LINUX) {
-      cmd = 'sudo snap install metanorma';
+      cmd = 'sudo snap install metanorma --classic';
     } else if (IS_WINDOWS) {
       cmd = 'choco install metanorma --yes --no-progress --pre';
     }
@@ -123,9 +127,17 @@ describe('Metanorma Installation', () => {
 
     let cmd: string | null = null;
     if (IS_MACOSX) {
-      cmd = 'brew install --formula metanorma.rb';
+      // Should warn about version not being supported and install latest
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Specific version 1.13.6 requested, but Homebrew tap only supports latest version')
+      );
+      cmd = 'brew install metanorma/metanorma/metanorma';
     } else if (IS_LINUX) {
-      cmd = 'sudo snap install metanorma --channel=1.13.6/edge --classic';
+      // Should warn about version not being supported and install latest
+      expect(core.warning).toHaveBeenCalledWith(
+        expect.stringContaining('Specific version 1.13.6 requested, but Snap channel versions are deprecated')
+      );
+      cmd = 'sudo snap install metanorma --classic';
     } else if (IS_WINDOWS) {
       cmd =
         'choco install metanorma --yes --no-progress --pre --version 1.13.6-pre';
@@ -148,15 +160,15 @@ describe('Environment Detection', () => {
     mockExec.mockResolvedValue(0);
 
     // Import the function we want to test
-    const { checkCommandExists } = jest.requireActual('../src/setup-metanorma');
+    const {checkCommandExists} = jest.requireActual('../src/setup-metanorma');
 
     const result = await checkCommandExists('ruby');
     expect(result).toBe(true);
 
     if (IS_WINDOWS) {
-      expect(mockExec).toHaveBeenCalledWith('where', ['ruby'], { silent: true });
+      expect(mockExec).toHaveBeenCalledWith('where', ['ruby'], {silent: true});
     } else {
-      expect(mockExec).toHaveBeenCalledWith('which', ['ruby'], { silent: true });
+      expect(mockExec).toHaveBeenCalledWith('which', ['ruby'], {silent: true});
     }
   });
 
@@ -166,7 +178,7 @@ describe('Environment Detection', () => {
     // Mock command not found
     mockExec.mockRejectedValue(new Error('Command not found'));
 
-    const { checkCommandExists } = jest.requireActual('../src/setup-metanorma');
+    const {checkCommandExists} = jest.requireActual('../src/setup-metanorma');
 
     const result = await checkCommandExists('nonexistent-command');
     expect(result).toBe(false);
@@ -182,7 +194,9 @@ describe('Environment Detection', () => {
       .mockRejectedValueOnce(new Error('Command not found')) // inkscape missing
       .mockRejectedValueOnce(new Error('Command not found')); // metanorma missing
 
-    const { checkEnvironmentStatus } = jest.requireActual('../src/setup-metanorma');
+    const {checkEnvironmentStatus} = jest.requireActual(
+      '../src/setup-metanorma'
+    );
 
     const status = await checkEnvironmentStatus();
 
@@ -207,25 +221,40 @@ describe('Bundler Environment Setup', () => {
     // Mock Ruby and bundler being available after setup
     mockExec.mockResolvedValue(0);
 
-    const { setupRubyWithBundler } = jest.requireActual('../src/setup-metanorma');
+    const {setupRubyWithBundler} = jest.requireActual('../src/setup-metanorma');
 
     await setupRubyWithBundler();
 
-    expect(core.exportVariable).toHaveBeenCalledWith('INPUT_RUBY_VERSION', '3.4');
-    expect(core.exportVariable).toHaveBeenCalledWith('INPUT_BUNDLER_CACHE', 'true');
-    expect(core.info).toHaveBeenCalledWith('Setting up Ruby environment via ruby/setup-ruby@v1...');
+    expect(core.exportVariable).toHaveBeenCalledWith(
+      'INPUT_RUBY_VERSION',
+      '3.4'
+    );
+    expect(core.exportVariable).toHaveBeenCalledWith(
+      'INPUT_BUNDLER_CACHE',
+      'true'
+    );
+    expect(core.info).toHaveBeenCalledWith(
+      'Setting up Ruby environment via ruby/setup-ruby@v1...'
+    );
   });
 
   it('should install Inkscape via cross-platform action', async () => {
-    const { installInkscapeCrossPlatform } = jest.requireActual('../src/setup-metanorma');
+    const {installInkscapeCrossPlatform} = jest.requireActual(
+      '../src/setup-metanorma'
+    );
 
     await installInkscapeCrossPlatform();
 
-    expect(core.info).toHaveBeenCalledWith('Installing Inkscape via metanorma/ci/inkscape-setup-action@main (cross-platform)...');
-    expect(core.info).toHaveBeenCalledWith('Inkscape installation would be handled by metanorma/ci/inkscape-setup-action@main');
-    expect(core.info).toHaveBeenCalledWith('This action is cross-platform and works on Linux, macOS, and Windows');
+    expect(core.info).toHaveBeenCalledWith(
+      'Installing Inkscape via metanorma/ci/inkscape-setup-action@main (cross-platform)...'
+    );
+    expect(core.info).toHaveBeenCalledWith(
+      'Inkscape installation would be handled by metanorma/ci/inkscape-setup-action@main'
+    );
+    expect(core.info).toHaveBeenCalledWith(
+      'This action is cross-platform and works on Linux, macOS, and Windows'
+    );
   });
-
 
   it('should update Fontist successfully', async () => {
     const mockExec = exec.exec as jest.Mock;
@@ -238,12 +267,16 @@ describe('Bundler Environment Setup', () => {
       .mockResolvedValueOnce(0) // metanorma check
       .mockResolvedValueOnce(0); // fontist update
 
-    const { setupRubyEnvironment } = jest.requireActual('../src/setup-metanorma');
+    const {setupRubyEnvironment} = jest.requireActual('../src/setup-metanorma');
 
     const result = await setupRubyEnvironment();
 
     expect(result).toBe('3.4');
-    expect(mockExec).toHaveBeenCalledWith('bundle', ['exec', 'fontist', 'update']);
+    expect(mockExec).toHaveBeenCalledWith('bundle', [
+      'exec',
+      'fontist',
+      'update'
+    ]);
     expect(core.info).toHaveBeenCalledWith('Updating Fontist via bundler...');
   });
 
@@ -258,12 +291,16 @@ describe('Bundler Environment Setup', () => {
       .mockResolvedValueOnce(0) // metanorma check
       .mockRejectedValueOnce(new Error('Fontist update failed')); // fontist update fails
 
-    const { setupRubyEnvironment } = jest.requireActual('../src/setup-metanorma');
+    const {setupRubyEnvironment} = jest.requireActual('../src/setup-metanorma');
 
     const result = await setupRubyEnvironment();
 
     expect(result).toBe('3.4');
-    expect(core.warning).toHaveBeenCalledWith('Failed to update Fontist: Fontist update failed');
-    expect(core.warning).toHaveBeenCalledWith('Continuing with installation...');
+    expect(core.warning).toHaveBeenCalledWith(
+      'Failed to update Fontist: Fontist update failed'
+    );
+    expect(core.warning).toHaveBeenCalledWith(
+      'Continuing with installation...'
+    );
   });
 });

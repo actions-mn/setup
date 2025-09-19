@@ -16,7 +16,7 @@ interface EnvironmentStatus {
 export async function checkCommandExists(command: string): Promise<boolean> {
   try {
     const cmd = IS_WINDOWS ? 'where' : 'which';
-    await exec.exec(cmd, [command], { silent: true });
+    await exec.exec(cmd, [command], {silent: true});
     return true;
   } catch {
     return false;
@@ -33,9 +33,11 @@ export async function checkEnvironmentStatus(): Promise<EnvironmentStatus> {
     checkCommandExists('metanorma')
   ]);
 
-  core.info(`Environment status - Ruby: ${ruby ? '✓' : '✗'}, Bundler: ${bundler ? '✓' : '✗'}, Inkscape: ${inkscape ? '✓' : '✗'}, Metanorma: ${metanorma ? '✓' : '✗'}`);
+  core.info(
+    `Environment status - Ruby: ${ruby ? '✓' : '✗'}, Bundler: ${bundler ? '✓' : '✗'}, Inkscape: ${inkscape ? '✓' : '✗'}, Metanorma: ${metanorma ? '✓' : '✗'}`
+  );
 
-  return { ruby, bundler, inkscape, metanorma };
+  return {ruby, bundler, inkscape, metanorma};
 }
 
 export async function setupRubyWithBundler(): Promise<void> {
@@ -48,7 +50,9 @@ export async function setupRubyWithBundler(): Promise<void> {
   try {
     // In GitHub Actions, we need to use the actions toolkit to call other actions
     // This is a simplified approach - in reality, the action would be called via uses: in YAML
-    core.info('Ruby setup would be handled by ruby/setup-ruby@v1 in the workflow');
+    core.info(
+      'Ruby setup would be handled by ruby/setup-ruby@v1 in the workflow'
+    );
     core.info('For now, verifying Ruby and bundler are available...');
 
     await exec.exec('ruby', ['--version']);
@@ -61,17 +65,27 @@ export async function setupRubyWithBundler(): Promise<void> {
 }
 
 export async function installInkscapeCrossPlatform(): Promise<void> {
-  core.info('Installing Inkscape via metanorma/ci/inkscape-setup-action@main (cross-platform)...');
+  core.info(
+    'Installing Inkscape via metanorma/ci/inkscape-setup-action@main (cross-platform)...'
+  );
 
   try {
     // metanorma/ci/inkscape-setup-action@main is already cross-platform
     // In a real GitHub Actions environment, this would be handled by the workflow using:
     // uses: metanorma/ci/inkscape-setup-action@main
-    core.info('Inkscape installation would be handled by metanorma/ci/inkscape-setup-action@main');
-    core.info('This action is cross-platform and works on Linux, macOS, and Windows');
+    core.info(
+      'Inkscape installation would be handled by metanorma/ci/inkscape-setup-action@main'
+    );
+    core.info(
+      'This action is cross-platform and works on Linux, macOS, and Windows'
+    );
   } catch (error) {
-    core.warning(`Failed to install Inkscape automatically: ${error instanceof Error ? error.message : String(error)}`);
-    throw new Error('Inkscape installation failed. Please use metanorma/ci/inkscape-setup-action@main in your workflow before this action.');
+    core.warning(
+      `Failed to install Inkscape automatically: ${error instanceof Error ? error.message : String(error)}`
+    );
+    throw new Error(
+      'Inkscape installation failed. Please use metanorma/ci/inkscape-setup-action@main in your workflow before this action.'
+    );
   }
 }
 
@@ -101,7 +115,9 @@ export async function setupRubyEnvironment(): Promise<string> {
     core.info('Updating Fontist via bundler...');
     await exec.exec('bundle', ['exec', 'fontist', 'update']);
   } catch (error) {
-    core.warning(`Failed to update Fontist: ${error instanceof Error ? error.message : String(error)}`);
+    core.warning(
+      `Failed to update Fontist: ${error instanceof Error ? error.message : String(error)}`
+    );
     core.warning('Continuing with installation...');
   }
 
@@ -134,7 +150,7 @@ async function run() {
       core.info('Metanorma already available, skipping installation');
       // Still try to get the version for output
       try {
-        await exec.exec('metanorma', ['--version'], { silent: true });
+        await exec.exec('metanorma', ['--version'], {silent: true});
       } catch {
         // Ignore version check failures
       }
