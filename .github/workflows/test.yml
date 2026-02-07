@@ -10,14 +10,14 @@ jobs:
     name: local tests
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v6
       with:
-        node-version: 18
+        node-version: '24.x'
 
     - run: yarn install
-    - run: env NODE_OPTIONS=--openssl-legacy-provider yarn build
+    - run: yarn build
     - run: yarn format-check
     - run: yarn test
 
@@ -29,7 +29,7 @@ jobs:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - uses: ./
 
@@ -47,7 +47,7 @@ jobs:
         os: [windows-latest, macos-latest] # ubuntu-latest,
         version: ['1.7.1']
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - uses: ./
       with:

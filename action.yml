@@ -4,16 +4,23 @@ author: 'Metanorma'
 branding:
   icon: 'book-open'  
   color: 'blue'
-inputs: 
+inputs:
   version:
     description: 'Version of a metanorma-cli ruby gem.'
-    default: null
+    default: ''
   snap-channel:
     description: 'Snapcraft channel, more details https://snapcraft.io/docs/channels'
     default: 'stable'
   choco-prerelase:
     description: Allow prerelases for chocolatey packages
-    default: '' # false
+    default: ''
+outputs:
+  version:
+    description: 'The installed Metanorma version'
+  platform:
+    description: 'The platform Metanorma was installed on'
 runs:
   using: 'node20'
   main: 'dist/index.js'
+  post: 'dist/index.js'
+  post-if: always()

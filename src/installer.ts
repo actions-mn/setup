@@ -10,14 +10,14 @@ const IS_LINUX = process.platform === 'linux';
 
 async function download(url: string, path: string) {
   const res = await fetch(url);
-  await new Promise((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     const fileStream = fs.createWriteStream(path);
     if (res.body) {
       res.body.pipe(fileStream);
       res.body.on('error', err => {
         reject(err);
       });
-      fileStream.on('finish', function() {
+      fileStream.on('finish', function () {
         resolve();
       });
     } else {
@@ -38,12 +38,28 @@ export async function installMetanormaVersion(
   if (IS_MACOSX) {
     let cmd = ['brew', 'install'];
     if (version) {
-      let formulaUrl =
-        'https://raw.githubusercontent.com/metanorma/homebrew-metanorma/' +
-        `v${version}/Formula/metanorma.rb`;
-      await download(formulaUrl, 'metanorma.rb');
-      cmd.push('--formula');
-      cmd.push('metanorma.rb');
+      const tapDir = '/opt/homebrew/Library/Taps/metanorma/homebrew-metanorma';
+
+      // Ensure tap exists
+      await exec.exec('brew', ['tap', 'metanorma/metanorma'], {
+        silent: true,
+        ignoreReturnCode: true
+      });
+
+      // Checkout the specific version tag
+      await exec.exec('git', ['checkout', `v${version}`], {
+        cwd: tapDir,
+        silent: true,
+        ignoreReturnCode: true
+      });
+
+      // Update brew to pick up the changes
+      await exec.exec('brew', ['update', 'metanorma/metanorma'], {
+        silent: true,
+        ignoreReturnCode: true
+      });
+
+      cmd.push('metanorma/metanorma/metanorma');
     } else {
       cmd.push('metanorma/metanorma/metanorma');
     }
