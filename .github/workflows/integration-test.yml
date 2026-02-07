@@ -1,0 +1,106 @@
+name: Integration Test
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Format check
+        run: yarn format-check
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v6
+        with:
+          name: dist
+          path: dist/
+
+  test-ubuntu:
+    name: Ubuntu Test
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download dist
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup Metanorma
+        uses: ./
+        with:
+          version: ''
+
+      - name: Verify installation
+        run: |
+          metanorma --version
+          metanorma list-doctypes
+
+  test-macos:
+    name: macOS Test
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download dist
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup Metanorma
+        uses: ./
+        with:
+          version: ''
+
+      - name: Verify installation
+        run: |
+          metanorma --version
+          metanorma list-doctypes
+
+  test-windows:
+    name: Windows Test
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download dist
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+      - name: Setup Metanorma
+        uses: ./
+        with:
+          version: ''
+
+      - name: Verify installation
+        shell: pwsh
+        run: |
+          metanorma --version
+          metanorma list-doctypes

@@ -8,7 +8,7 @@ async function run() {
     let choco_prerelase = core.getInput('choco-prerelase') === 'true';
     await installMetanormaVersion(version, snap_channel, choco_prerelase);
   } catch (error) {
-    core.setFailed(error.message);
+    core.setFailed(error instanceof Error ? error.message : String(error));
   }
 }
 
