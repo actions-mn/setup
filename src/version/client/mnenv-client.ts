@@ -8,11 +8,17 @@ import { MnenvAllVersions } from '../types/mnenv-types';
 
 /**
  * MnenvClient handles interaction with the mnenv CLI.
+ *
+ * IMPORTANT: This client uses RUNNER_TEMP for all temporary files to avoid polluting
+ * the user's repository. RUNNER_TEMP is automatically cleaned up by GitHub Actions
+ * after the job completes, ensuring our action leaves no trace in the user's repo.
+ *
  * Responsibilities:
- * - Clone metanorma/versions repository
- * - Install Ruby dependencies (bundle install)
+ * - Clone metanorma/versions repository to RUNNER_TEMP
+ * - Install Ruby in RUNNER_TEMP if not available (isolated from user environment)
+ * - Install Ruby dependencies (bundle install) in isolated temp directory
  * - Execute mnenv CLI and capture JSON output
- * - Clean up cloned repository
+ * - Clean up cloned repository (also called via main/post lifecycle)
  *
  * @sealed This class should not be extended.
  */
@@ -22,6 +28,7 @@ export class MnenvClient {
   private readonly CLONE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
   private readonly EXEC_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
   private repoDir: string | null = null;
+  private rubyDir: string | null = null;
   private isInitialized = false;
   private initializationFailed = false;
 
@@ -40,14 +47,10 @@ export class MnenvClient {
     }
 
     try {
-      const workspace = process.env.GITHUB_WORKSPACE || homedir();
-      this.repoDir = path.join(workspace, '.mnenv-versions');
-
-      // Validate prerequisites
-      if (!(await this.checkPrerequisites())) {
-        this.initializationFailed = true;
-        return false;
-      }
+      // Use RUNNER_TEMP for temporary files to avoid polluting user's repository
+      // RUNNER_TEMP is automatically cleaned up by GitHub Actions after the job completes
+      const tempDir = process.env.RUNNER_TEMP || homedir();
+      this.repoDir = path.join(tempDir, '.mnenv-versions');
 
       await this.cloneRepository();
       await this.installDependencies();
@@ -214,7 +217,7 @@ export class MnenvClient {
       }
     };
 
-    const exitCode = await exec.exec('bundle', ['exec', 'mnenv', ...args], options);
+    const exitCode = await exec.exec('bundle', ['exec', 'ruby', 'exe/mnenv', ...args], options);
 
     if (exitCode !== 0) {
       throw new Error(`mnenv failed with exit code ${exitCode}: ${error}`);

@@ -1,5 +1,5 @@
 import * as core from '@actions/core';
-import { MnenvClient } from '../client/mnenv-client';
+import { MnenvYamlFetcher } from '../client/mnenv-yaml-fetcher';
 import { MnenvAllVersions } from '../types/mnenv-types';
 import { SnapProvider } from '../providers/snap-provider';
 import { GemfileProvider } from '../providers/gemfile-provider';
@@ -11,22 +11,22 @@ import { IVersionProvider, Platform } from '../types/provider-types';
  * VersionDataStore manages version data for all platforms.
  *
  * Responsibilities:
- * - Initialize MnenvClient and fetch data
+ * - Fetch version data from metanorma/versions YAML files via HTTPS
  * - Create and cache platform-specific providers
  * - Provide typed access to each platform's provider
- * - Gracefully degrade when mnenv is unavailable
+ * - No Ruby/Bundler/git needed - pure TypeScript implementation
  *
  * @sealed This class uses a singleton pattern and should not be extended.
  */
 export class VersionDataStore {
   private static instance: VersionDataStore | null = null;
-  private client: MnenvClient;
+  private fetcher: MnenvYamlFetcher;
   private providers: Map<Platform, IVersionProvider>;
   private isInitialized = false;
   private initializationFailed = false;
 
   private constructor() {
-    this.client = new MnenvClient();
+    this.fetcher = new MnenvYamlFetcher();
     this.providers = new Map();
   }
 
@@ -47,7 +47,7 @@ export class VersionDataStore {
   }
 
   /**
-   * Initialize the store by fetching data from mnenv.
+   * Initialize the store by fetching data from YAML files.
    * Returns true if successful, false otherwise.
    */
   private async initialize(): Promise<boolean> {
@@ -62,17 +62,10 @@ export class VersionDataStore {
 
     core.info('Initializing VersionDataStore...');
 
-    const initialized = await this.client.initialize();
-    if (!initialized) {
-      this.initializationFailed = true;
-      core.warning('Failed to initialize MnenvClient, version data will not be available');
-      return false;
-    }
-
-    const mnenvData = await this.client.fetchAllVersions();
+    const mnenvData = await this.fetcher.fetchAllVersions();
     if (!mnenvData) {
       this.initializationFailed = true;
-      core.warning('Failed to fetch versions from mnenv, version data will not be available');
+      core.warning('Failed to fetch versions from YAML, version data will not be available');
       return false;
     }
 
@@ -135,10 +128,10 @@ export class VersionDataStore {
   }
 
   /**
-   * Clean up resources.
+   * Clean up resources (no-op for YAML fetcher, kept for API compatibility).
    */
   async cleanup(): Promise<void> {
-    await this.client.cleanup();
+    // No cleanup needed for YAML fetcher
   }
 
   private ensureInitialized(): void {
