@@ -41,23 +41,11 @@ async function run(): Promise<void> {
     core.info('✓ Metanorma installation completed successfully');
   } catch (error) {
     core.setFailed(`${(error as any)?.message ?? error}`);
-  } finally {
-    // Clean up version store (removes cloned .mnenv-versions directory)
-    if (versionStore) {
-      await versionStore.cleanup();
-    }
   }
 }
 
 async function cleanup(): Promise<void> {
   try {
-    // Clean up version store if it was initialized
-    // Even if the main action failed, we should clean up the .mnenv-versions directory
-    const versionStore = await getVersionStore();
-    if (versionStore) {
-      await versionStore.cleanup();
-    }
-
     // Get inputs to determine platform and installation method
     const settings = await getInputs();
     const installer = InstallerFactory.createInstaller(

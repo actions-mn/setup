@@ -21,7 +21,7 @@
  */
 
 export { VersionDataStore } from './store/version-data-store';
-export { MnenvClient } from './client/mnenv-client';
+export { MnenvYamlFetcher } from './client/mnenv-yaml-fetcher';
 
 // Providers
 export { VersionProvider } from './providers/version-provider';
@@ -41,7 +41,7 @@ import { VersionDataStore } from './store/version-data-store';
 /**
  * Get the singleton VersionDataStore instance.
  * This is the main entry point for version data access.
- * Returns null if initialization fails (mnenv CLI not available).
+ * Returns null if initialization fails (YAML fetch failed).
  */
 export async function getVersionStore(): Promise<VersionDataStore | null> {
   return VersionDataStore.getInstance();

@@ -1,0 +1,108 @@
+name: Integration Test - Site Generation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Test site generation across all platforms and installation methods
+  test-site-generate:
+    name: Site ${{ matrix.os }} ${{ matrix.installation-method }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        installation-method: [ native, gem ]
+        include:
+          # Native installation methods per platform
+          - os: ubuntu-latest
+            installation-method: native
+            method: snap
+          - os: macos-latest
+            installation-method: native
+            method: homebrew
+          - os: windows-latest
+            installation-method: native
+            method: choco
+          # Dev tools for Windows gem installation
+          - os: windows-latest
+            installation-method: gem
+            windows-toolchain: true
+    steps:
+    - name: Checkout action
+      uses: actions/checkout@v6
+
+    - name: Checkout mn-samples-cc
+      uses: actions/checkout@v6
+      with:
+        repository: metanorma/mn-samples-cc
+        path: mn-samples-cc
+
+    # For gem installation, setup Ruby first
+    - name: Setup Ruby (gem method)
+      if: matrix.installation-method == 'gem'
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        bundler-cache: true
+        windows-toolchain: ${{ matrix.windows-toolchain || '' }}
+
+    - name: Setup Metanorma
+      uses: ./
+      with:
+        installation-method: ${{ matrix.method || matrix.installation-method }}
+
+    - name: Bundle install (gem method)
+      if: matrix.installation-method == 'gem'
+      working-directory: mn-samples-cc
+      shell: bash
+      run: |
+        echo "Running bundle install in test repository..."
+        bundle install
+        echo "Bundle install completed"
+
+    - name: Verify Metanorma installation
+      shell: bash
+      run: |
+        ${{ matrix.installation-method == 'gem' && 'bundle exec' || '' }} metanorma --version
+        ${{ matrix.installation-method == 'gem' && 'bundle exec' || '' }} metanorma help
+
+    - name: Run metanorma site generate
+      shell: bash
+      working-directory: mn-samples-cc
+      run: |
+        echo "Running: ${{ matrix.installation-method == 'gem' && 'bundle exec' || '' }} metanorma site generate --agree-to-terms"
+        ${{ matrix.installation-method == 'gem' && 'bundle exec' || '' }} metanorma site generate --agree-to-terms
+        echo "Site generation completed successfully"
+
+    - name: Verify output files exist
+      shell: bash
+      working-directory: mn-samples-cc
+      run: |
+        if [ -d "_site" ]; then
+          echo "✓ _site directory created"
+          ls -la _site/ | head -20
+        else
+          echo "✗ _site directory not found"
+          echo "Directory contents:"
+          ls -la
+          exit 1
+        fi
+
+    - name: Upload generated site
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: site-${{ matrix.os }}-${{ matrix.installation-method }}
+        path: mn-samples-cc/_site/
+        retention-days: 7

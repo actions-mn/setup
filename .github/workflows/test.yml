@@ -45,77 +45,112 @@ jobs:
 
     - run: metanorma help
 
-  # Native package manager tests - split into separate jobs per platform
-  # Each platform tests its latest available version from platform-specific JSON
-  native-package-windows:
-    name: Native Package Windows (Chocolatey)
-    runs-on: windows-latest
+  # Fetch version data from mnenv for use in package tests
+  fetch-versions:
+    name: Fetch Versions from mnenv
+    runs-on: ubuntu-latest
+    outputs:
+      snap-latest: ${{ steps.versions.outputs.snap-latest }}
+      snap-test-version: ${{ steps.versions.outputs.snap-test-version }}
+      chocolatey-latest: ${{ steps.versions.outputs.chocolatey-latest }}
+      homebrew-latest: ${{ steps.versions.outputs.homebrew-latest }}
     steps:
     - uses: actions/checkout@v6
 
-    # Read latest version from platform-specific JSON
-    - name: Read Windows version
-      id: windows-version
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        bundler-cache: true
+
+    - name: Clone metanorma/versions
       run: |
-        $version = (Get-Content platform-windows-native-versions.json | ConvertFrom-Json).latest
-        Write-Output "version=$version" >> $env:GITHUB_OUTPUT
-      shell: pwsh
+        git clone --depth=1 https://github.com/metanorma/versions.git .mnenv-versions
+
+    - name: Install Ruby dependencies
+      run: |
+        cd .mnenv-versions
+        bundle install
+
+    - name: Fetch version data
+      id: versions
+      run: |
+        cd .mnenv-versions
+        # Get JSON output from mnenv (use bundle exec ruby exe/mnenv when running from repo)
+        VERSIONS=$(bundle exec ruby exe/mnenv list-all --format=json)
+        echo "$VERSIONS" > versions.json
+
+        # Extract latest versions
+        SNAP_LATEST=$(jq -r '.snap.latest' versions.json)
+        CHOCO_LATEST=$(jq -r '.chocolatey.latest' versions.json)
+        HOMEBREW_LATEST=$(jq -r '.homebrew.latest' versions.json)
+
+        # Get a test version from snap (use a stable version that's not latest for testing)
+        SNAP_TEST=$(jq -r '.snap.versions[0].version' versions.json)
+
+        echo "snap-latest=$SNAP_LATEST" >> $GITHUB_OUTPUT
+        echo "snap-test-version=$SNAP_TEST" >> $GITHUB_OUTPUT
+        echo "chocolatey-latest=$CHOCO_LATEST" >> $GITHUB_OUTPUT
+        echo "homebrew-latest=$HOMEBREW_LATEST" >> $GITHUB_OUTPUT
+
+        echo "Snap latest: $SNAP_LATEST"
+        echo "Snap test version: $SNAP_TEST"
+        echo "Chocolatey latest: $CHOCO_LATEST"
+        echo "Homebrew latest: $HOMEBREW_LATEST"
+
+    - name: Upload version data
+      uses: actions/upload-artifact@v4
+      with:
+        name: version-data
+        path: .mnenv-versions/versions.json
+
+  # Native package manager tests - use versions from mnenv
+  native-package-windows:
+    name: Native Package Windows (Chocolatey)
+    runs-on: windows-latest
+    needs: fetch-versions
+    steps:
+    - uses: actions/checkout@v6
 
     - uses: ./
       with:
-        version: ${{ steps.windows-version.outputs.version }}
+        version: ${{ needs.fetch-versions.outputs.chocolatey-latest }}
 
     - run: |
         metanorma --version
-        echo "✓ Metanorma installed via Chocolatey (version ${{ steps.windows-version.outputs.version }})"
+        echo "✓ Metanorma installed via Chocolatey (version ${{ needs.fetch-versions.outputs.chocolatey-latest }})"
       shell: bash
 
   native-package-macos:
     name: Native Package macOS (Homebrew)
     runs-on: macos-latest
+    needs: fetch-versions
     steps:
     - uses: actions/checkout@v6
 
-    # Read latest version from platform-specific JSON
-    - name: Read macOS version
-      id: macos-version
-      run: |
-        VERSION=$(jq -r '.latest' platform-macos-native-versions.json)
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-
     - uses: ./
       with:
-        version: ${{ steps.macos-version.outputs.version }}
+        version: ${{ needs.fetch-versions.outputs.homebrew-latest }}
 
     - run: |
         metanorma --version
-        echo "✓ Metanorma installed via Homebrew (version ${{ steps.macos-version.outputs.version }})"
+        echo "✓ Metanorma installed via Homebrew (version ${{ needs.fetch-versions.outputs.homebrew-latest }})"
 
   native-package-ubuntu:
     name: Native Package Ubuntu (Snap)
     runs-on: ubuntu-latest
+    needs: fetch-versions
     steps:
     - uses: actions/checkout@v6
 
-    # Read specific version from platform-snap-native-versions.json
-    # to test revision-based installation
-    - name: Read Snap version for revision test
-      id: snap-version
-      run: |
-        # Use a known version with available revision (1.14.3 has revision 287)
-        VERSION=$(jq -r '.revisions["1.14.3"].amd64.version' platform-snap-native-versions.json)
-        REVISION=$(jq -r '.revisions["1.14.3"].amd64.revision' platform-snap-native-versions.json)
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
-        echo "revision=$REVISION" >> $GITHUB_OUTPUT
-
+    # Test Snap revision-based installation using mnenv
     - uses: ./
       with:
         installation-method: 'native'
-        version: ${{ steps.snap-version.outputs.version }}
+        version: ${{ needs.fetch-versions.outputs.snap-test-version }}
 
     - run: |
         metanorma --version
-        echo "✓ Metanorma installed via Snap (version ${{ steps.snap-version.outputs.version }}, revision ${{ steps.snap-version.outputs.revision }})"
+        echo "✓ Metanorma installed via Snap with revision pinning (via mnenv, version ${{ needs.fetch-versions.outputs.snap-test-version }})"
 
   # Gem-based installation tests
   docker-gem-ubuntu:
@@ -129,8 +164,6 @@ jobs:
     - uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.4'
-        # Note: bundler-cache: true removed - our action handles bundle install
-        # after installing system dependencies
 
     - uses: ./
       with:
@@ -197,7 +230,6 @@ jobs:
     - uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.4'
-        # Note: bundler-cache: true removed - test creates its own Gemfile
 
     # Create a Gemfile with specific version (1.13.0 doesn't have fontist LoadError issue)
     - run: |
@@ -207,7 +239,6 @@ jobs:
     - uses: ./
       with:
         installation-method: 'gem'
-        # No version specified - should respect existing Gemfile
 
     - run: |
         if bundle exec metanorma --version | grep -q "1.13.0"; then
@@ -227,7 +258,6 @@ jobs:
     - uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.4'
-        # Note: bundler-cache: true removed - our action handles bundle install
 
     - uses: ./
       with:

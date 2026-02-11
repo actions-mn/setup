@@ -1,15 +1,18 @@
 # Setup Metanorma
 
 [![Build and Test](https://github.com/actions-mn/setup/actions/workflows/test.yml/badge.svg)](https://github.com/actions-mn/setup/actions/workflows/test.yml)
+[![Integration Tests](https://github.com/actions-mn/setup/actions/workflows/integration-compile.yml/badge.svg)](https://github.com/actions-mn/setup/actions/workflows/integration-compile.yml)
+[![Site Generation Tests](https://github.com/actions-mn/setup/actions/workflows/integration-site.yml/badge.svg)](https://github.com/actions-mn/setup/actions/workflows/integration-site.yml)
 
 This action sets up the Metanorma toolchain and adds the command-line tools to the PATH. Metanorma is a suite of tools for authoring standards documents, supporting ISO, IEC, IEEE, IETF, ITU, and other standards organizations.
 
 ## What's new
 
+- **YAML-based version registry**: Fetches version data directly from [metanorma/versions](https://github.com/metanorma/versions) repository YAML files - no Ruby/Bundler dependencies
 - **Pre-built Gemfile.lock integration**: Automatically uses pre-tested Gemfile.lock files from [metanorma-gemfile-locks](https://github.com/metanorma/metanorma-gemfile-locks) for deterministic, tested dependency resolution
 - **Dependency updates while keeping metanorma-cli pinned**: New `bundle-update` input allows updating dependencies while preserving the metanorma-cli version
 - **Revision-based Snap installation**: Install specific Metanorma versions on Linux using Snap revision pinning
-- **Platform-specific version management**: Each platform (Chocolatey, Homebrew, Snap) tracks available versions separately
+- **Platform-specific version management**: Each platform (Chocolatey, Homebrew, Snap, Gem) tracks available versions separately
 - **Fontist formula updates**: Optional automatic fontist formula updates after gem installation
 - **Multi-method installation**: Support for native package managers, gem-based installation, or auto-detection
 
@@ -99,20 +102,19 @@ Different platforms have different version availability. See the [Platform Versi
 
 **Windows (Chocolatey)**
 - Latest: `1.14.4`
-- Available versions tracked in: `platform-windows-native-versions.json`
+- Version data fetched from: `metanorma/versions` repository (`data/chocolatey/versions.yaml`)
 
 **macOS (Homebrew)**
 - Latest: `1.13.0`
-- Available versions tracked in: `platform-macos-native-versions.json`
+- Version data fetched from: `metanorma/versions` repository (`data/homebrew/versions.yaml`)
 
 **Linux (Snap)**
 - Latest: `1.14.4`
 - Uses revision pinning for version-specific installation
-- Revision mapping tracked in: `platform-snap-native-versions.json`
+- Revision data fetched from: `metanorma/versions` repository (`data/snap/versions.yaml`)
 
 **Docker Containers (for gem-based installation)**
-- `ubuntu:22.04` - Image created: 2026-01-09
-- `ruby:alpine` - Image created: 2026-01-28
+- Gemfile availability tracked in: `metanorma/versions` repository (`data/gemfile/versions.yaml`)
 
 ### Gem-Based Installation
 
@@ -385,6 +387,23 @@ jobs:
     - run: bundle exec metanorma --version
 ```
 
+## Integration Tests
+
+The action includes comprehensive integration tests that verify both native and gem-based installation methods across all platforms (Ubuntu, macOS, Windows). These tests:
+
+1. **Single Document Compilation**: Compiles a sample Metanorma document to verify the installation works correctly
+2. **Site Generation**: Runs `metanorma site generate` on a sample repository to test full workflow functionality
+
+The integration tests use the [mn-samples-cc](https://github.com/metanorma/mn-samples-cc) repository for testing, which provides a small, fast-compiling sample document set.
+
+**Test Matrix:**
+
+| Platform | Native Method | Gem Method |
+|----------|---------------|------------|
+| Ubuntu (Snap) | ✅ Tested | ✅ Tested |
+| macOS (Homebrew) | ✅ Tested | ✅ Tested |
+| Windows (Chocolatey) | ✅ Tested | ✅ Tested |
+
 ## Platform Version Matrix
 
 | Version | Windows (Chocolatey) | macOS (Homebrew) | Linux (Snap) | Gem (RubyGems) |
@@ -408,23 +427,25 @@ jobs:
 - ❌ Not available
 - Snap revision numbers shown are for amd64 (arm64 revisions also tracked)
 
-### Version Data Files
+### Version Data
 
-The action maintains platform-specific version data files:
+The action fetches version data from the [metanorma/versions](https://github.com/metanorma/versions) repository using YAML files:
 
-- `platform-windows-native-versions.json` - Chocolatey versions
-- `platform-macos-native-versions.json` - Homebrew versions
-- `platform-snap-native-versions.json` - Snap revision mapping
-- `platform-linux-native-versions.json` - Snap versions (summary)
+- **Snap**: `data/snap/versions.yaml` - Revision mapping for version-specific installation
+- **Gemfile**: `data/gemfile/versions.yaml` - Available gem versions with Gemfile availability
+- **Homebrew**: `data/homebrew/versions.yaml` - Tap versions with tag/commit information
+- **Chocolatey**: `data/chocolatey/versions.yaml` - Package versions with pre-release flags
 
-These files are automatically updated by the `update-versions.yml` workflow.
+**Version fetching is done via HTTPS** using pure TypeScript/Node.js - no Ruby, Bundler, or git clone required. The YAML files are fetched directly from GitHub's raw content URLs and parsed using the `js-yaml` library.
+
+**Fallback behavior**: If version data cannot be fetched (e.g., network issues), the action gracefully falls back to existing behavior for native installations.
 
 ## Snap Revision Pinning
 
 Snap packages don't support version-specific channels like `1.14.3/stable`. Instead, each upload to the Snap Store gets a unique revision number. To install a specific Metanorma version via Snap:
 
-1. The action looks up the version in `platform-snap-native-versions.json`
-2. Finds the corresponding Snap revision for that version
+1. The action fetches version data from the `metanorma/versions` repository (`data/snap/versions.yaml`)
+2. Finds the corresponding Snap revision for that version and architecture
 3. Installs using `snap install metanorma --revision=<N> --classic`
 4. Holds the revision with `snap refresh metanorma --hold`
 
@@ -438,25 +459,22 @@ Snap packages don't support version-specific channels like `1.14.3/stable`. Inst
 
 This installs Snap revision 276 (which corresponds to Metanorma 1.13.9 on amd64) or revision 277 (for arm64) and holds it at that revision.
 
-**Revision Mapping Format:**
+**Revision Data Format:**
 
-```json
-{
-  "revisions": {
-    "1.13.9": {
-      "amd64": {
-        "revision": 276,
-        "channel": "stable",
-        "version": "1.13.9"
-      },
-      "arm64": {
-        "revision": 277,
-        "channel": "stable",
-        "version": "1.13.9"
-      }
-    }
-  }
-}
+The YAML file contains version entries with architecture-specific revision data:
+
+```yaml
+versions:
+  - version: "1.13.9"
+    revision: 276
+    channel: stable
+    arch: amd64
+    published_at: "2024-01-15T10:30:00Z"
+  - version: "1.13.9"
+    revision: 277
+    channel: stable
+    arch: arm64
+    published_at: "2024-01-15T10:30:00Z"
 ```
 
 ## Maintainer notes
