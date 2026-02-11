@@ -1,22 +1,143 @@
 import {IMetanormaSettings} from '../metanorma-settings';
 import {BaseInstaller} from './base-installer';
 import * as core from '@actions/core';
+import { getVersionStore, VersionDataStore, Architecture } from '../version';
+
+interface SnapRevisionInfo {
+  revision: number;
+  channel: string;
+  version: string;
+}
+
+/**
+ * Map Node.js architecture to Snap architecture
+ */
+function mapNodeArchToSnapArch(nodeArch: string): Architecture {
+  // Node.js returns 'x64' for amd64, 'arm64' for arm64
+  switch (nodeArch) {
+    case 'arm64':
+    case 'aarch64':
+      return 'arm64';
+    case 'x64':
+    case 'amd64':
+    case 'x86_64':
+    default:
+      return 'amd64';
+  }
+}
 
 /**
  * Linux Snap installer
  * Installs Metanorma using Snap package manager
+ *
+ * Snap installation methods:
+ * 1. Revision-based: Install a specific revision for a version
+ * 2. Channel-based: Install from a channel (stable, candidate, beta, edge)
+ *
+ * When a version is specified, the action will:
+ * - Look up the revision number for that version from mnenv (if available)
+ * - Install using --revision to pin that specific version
+ * - Optionally track a channel for future updates
+ *
+ * If mnenv is not available, falls back to channel-based installation.
  */
 export class SnapInstaller extends BaseInstaller {
+  private versionStorePromise: Promise<VersionDataStore | null> | null = null;
+
+  /**
+   * Get the architecture-specific revision for a version
+   * Returns null if version store is not available or version not found.
+   */
+  private async getRevisionForVersion(
+    version: string
+  ): Promise<{ revision: number; channel: string } | null> {
+    const store = await this.getVersionStore();
+    if (!store) {
+      core.debug('Version store not available, cannot look up revision');
+      return null;
+    }
+
+    const provider = store.getSnapProvider();
+
+    if (!provider.isAvailable(version)) {
+      core.warning(`Version ${version} is not available in snap versions`);
+      return null;
+    }
+
+    // Map Node.js arch to snap arch
+    const snapArch: Architecture = mapNodeArchToSnapArch(process.arch);
+
+    const revision = provider.getRevision(version, snapArch);
+    const channel = provider.getChannel(version, snapArch);
+
+    if (!revision || !channel) {
+      core.warning(`No revision found for version ${version} on ${snapArch}`);
+      return null;
+    }
+
+    return { revision, channel };
+  }
+
+  private getVersionStore(): Promise<VersionDataStore | null> {
+    if (!this.versionStorePromise) {
+      this.versionStorePromise = getVersionStore();
+    }
+    return this.versionStorePromise;
+  }
+
   async install(settings: IMetanormaSettings): Promise<void> {
     core.startGroup('Installing Metanorma via Snap');
 
     try {
-      // Try to install metanorma directly
       let args: string[] = ['snap', 'install', 'metanorma'];
 
       if (settings.version) {
-        const channel = `${settings.version}/${settings.snapChannel}`;
-        core.info(`Installing Metanorma version ${settings.version} from ${settings.snapChannel} channel...`);
+        // Try version-based installation using revision pinning from mnenv
+        const revisionInfo = await this.getRevisionForVersion(settings.version);
+
+        if (revisionInfo) {
+          core.info(
+            `Installing Metanorma version ${settings.version} ` +
+            `(revision ${revisionInfo.revision}, channel: ${revisionInfo.channel})...`
+          );
+
+          // Install with revision pinning
+          args.push(`--revision=${revisionInfo.revision}`, '--classic');
+
+          const exitCode = await this.execCommand('sudo', args);
+
+          if (exitCode !== 0) {
+            throw new Error(`Snap installation failed with exit code ${exitCode}`);
+          }
+
+          // Optionally hold the revision to prevent auto-refresh
+          // This ensures the specific version stays installed
+          core.info(`Holding Metanorma at revision ${revisionInfo.revision}...`);
+          await this.execCommand('snap', ['refresh', 'metanorma', '--hold'], {
+            ignoreReturnCode: true
+          });
+
+          core.info(
+            `✓ Metanorma ${settings.version} installed successfully via Snap ` +
+            `(revision ${revisionInfo.revision}, held at this version)`
+          );
+          return;
+        }
+
+        // Fall through to channel-based if revision not found or mnenv unavailable
+        core.info(
+          `Revision lookup not available for version ${settings.version}, ` +
+          `using channel-based installation`
+        );
+      }
+
+      // Channel-based installation (latest or when version not found/mnenv unavailable)
+      if (settings.version) {
+        const channel = `${settings.snapChannel}`;
+        core.info(
+          `Installing Metanorma from ${channel} channel ` +
+          `(version ${settings.version} requested, using channel for installation)...`
+        );
         args.push(`--channel=${channel}`, '--classic');
       } else {
         core.info('Installing Metanorma latest from stable channel...');

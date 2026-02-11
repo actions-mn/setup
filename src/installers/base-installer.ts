@@ -37,7 +37,15 @@ export abstract class BaseInstaller implements IMetanormaInstaller {
   ): Promise<number> {
     const fullCommand = [command, ...args].join(' ');
     core.debug(`Executing: ${fullCommand}`);
-    return await exec.exec(command, args, options);
+    const result = await exec.exec(command, args, options);
+    // When ignoreReturnCode is true, exec returns an object with {code, stdout, stderr}
+    // Otherwise it returns the exit code directly
+    if (typeof result === 'number') {
+      return result;
+    }
+    // result is an object with code property
+    const code = (result as any).code;
+    return code !== undefined ? code : 1; // Default to 1 (failure) if code is undefined
   }
 
   /**
@@ -71,17 +79,36 @@ export abstract class BaseInstaller implements IMetanormaInstaller {
 
   /**
    * Check if a command exists
+   * Uses multiple methods for reliability
    */
   protected async commandExists(command: string): Promise<boolean> {
+    // Method 1: Try 'command -v'
     try {
-      await this.execCommand('command', ['-v', command], {
+      const exitCode = await this.execCommand('command', ['-v', command], {
         silent: true,
         ignoreReturnCode: true
       });
-      return true;
-    } catch {
-      return false;
+      if (exitCode === 0) {
+        return true;
+      }
+    } catch (error) {
+      core.debug(`commandExists via 'command -v' failed for '${command}': ${error}`);
     }
+
+    // Method 2: Try 'which' (more reliable on some systems)
+    try {
+      const exitCode = await this.execCommand('which', [command], {
+        silent: true,
+        ignoreReturnCode: true
+      });
+      if (exitCode === 0) {
+        return true;
+      }
+    } catch (error) {
+      core.debug(`commandExists via 'which' failed for '${command}': ${error}`);
+    }
+
+    return false;
   }
 
   abstract install(settings: IMetanormaSettings): Promise<void>;

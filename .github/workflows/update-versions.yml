@@ -1,0 +1,66 @@
+name: Update Available Versions
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run daily at 00:00 UTC
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/update-versions.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update-versions:
+    name: Fetch and update available versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests pyyaml
+
+      - name: Fetch Snap versions
+        run: |
+          python .github/scripts/fetch_snap_versions.py
+
+      - name: Fetch Chocolatey versions
+        run: |
+          python .github/scripts/fetch_chocolatey_versions.py
+
+      - name: Fetch Homebrew versions
+        run: |
+          python .github/scripts/fetch_homebrew_versions.py
+
+      - name: Merge versions
+        run: |
+          python .github/scripts/merge_versions.py
+
+      - name: Validate versions JSON
+        run: |
+          python .github/scripts/validate_versions.py
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'chore: update available versions JSON'
+          title: 'chore: update available versions JSON'
+          body: |
+            Automated update of available Metanorma versions from:
+            - Snap (stable/candidate/beta/edge channels)
+            - Chocolatey
+            - Homebrew (metanorma/homebrew-metanorma tags)
+          branch: update/available-versions
+          delete-branch: true

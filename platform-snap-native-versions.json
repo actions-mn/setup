@@ -1,0 +1,105 @@
+{
+  "latest": "1.14.3",
+  "stable": "1.14.3",
+  "candidate": "1.14.4",
+  "beta": "1.14.4",
+  "edge": "1.14.4",
+  "revisions": {
+    "1.14.3": {
+      "amd64": {
+        "revision": 287,
+        "channel": "stable",
+        "version": "1.14.3"
+      }
+    },
+    "1.14.4": {
+      "arm64": {
+        "revision": 291,
+        "channel": "stable",
+        "version": "1.14.4"
+      },
+      "amd64": {
+        "revision": 290,
+        "channel": "candidate",
+        "version": "1.14.4"
+      }
+    },
+    "1.13.9": {
+      "amd64": {
+        "revision": 276,
+        "channel": "stable",
+        "version": "1.13.9"
+      }
+    },
+    "1.13.8": {
+      "amd64": {
+        "revision": 268,
+        "channel": "stable",
+        "version": "1.13.8"
+      }
+    },
+    "1.13.7": {
+      "amd64": {
+        "revision": 263,
+        "channel": "stable",
+        "version": "1.13.7"
+      }
+    },
+    "1.13.6": {
+      "amd64": {
+        "revision": 256,
+        "channel": "stable",
+        "version": "1.13.6"
+      }
+    },
+    "1.13.4": {
+      "amd64": {
+        "revision": 244,
+        "channel": "stable",
+        "version": "1.13.4"
+      }
+    },
+    "1.13.2": {
+      "amd64": {
+        "revision": 232,
+        "channel": "stable",
+        "version": "1.13.2"
+      }
+    },
+    "1.13.0": {
+      "amd64": {
+        "revision": 220,
+        "channel": "stable",
+        "version": "1.13.0"
+      }
+    },
+    "1.11.5": {
+      "amd64": {
+        "revision": 210,
+        "channel": "stable",
+        "version": "1.11.5"
+      }
+    },
+    "1.11.4": {
+      "amd64": {
+        "revision": 204,
+        "channel": "stable",
+        "version": "1.11.4"
+      }
+    },
+    "1.11.3": {
+      "amd64": {
+        "revision": 198,
+        "channel": "stable",
+        "version": "1.11.3"
+      }
+    },
+    "1.11.0": {
+      "amd64": {
+        "revision": 190,
+        "channel": "stable",
+        "version": "1.11.0"
+      }
+    }
+  }
+}

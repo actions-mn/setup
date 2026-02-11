@@ -1,4 +1,5 @@
-import {Platform} from './platform-detector';
+import {Platform, InstallationMethod} from './platform-detector';
+import {ContainerInfo} from './container-detector';
 
 /**
  * Metanorma installation settings interface
@@ -31,4 +32,39 @@ export interface IMetanormaSettings {
    * Installation path (where Metanorma will be installed)
    */
   installPath: string;
+
+  /**
+   * Installation method (auto/native/gem)
+   */
+  installationMethod: InstallationMethod;
+
+  /**
+   * Container information (only available on Linux)
+   */
+  containerInfo?: ContainerInfo;
+
+  /**
+   * Bundler version for gem-based installation
+   */
+  bundlerVersion?: string;
+
+  /**
+   * Custom Gemfile path for gem-based installation
+   */
+  gemfile?: string;
+
+  /**
+   * Whether to update fontist formulas after gem installation
+   */
+  fontistUpdate?: boolean;
+
+  /**
+   * Whether to update dependencies while keeping metanorma-cli version pinned
+   */
+  bundleUpdate?: boolean;
+
+  /**
+   * Whether to use pre-built Gemfile.lock files from metanorma-gemfile-locks
+   */
+  usePrebuiltLocks?: boolean;
 }

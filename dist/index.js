@@ -1,6 +1,470 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 9946:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.detectContainer = detectContainer;
+exports.getInstallationMethod = getInstallationMethod;
+const fs = __importStar(__nccwpck_require__(9896));
+const core = __importStar(__nccwpck_require__(7484));
+const exec = __importStar(__nccwpck_require__(5236));
+const platform_detector_1 = __nccwpck_require__(4392);
+/**
+ * Detect if running in a container and gather container information
+ */
+async function detectContainer() {
+    const info = {
+        isContainer: false,
+        type: 'none',
+        hasRuby: false,
+        hasMetanorma: false,
+        distribution: 'unknown'
+    };
+    // Detect container type
+    info.type = await detectContainerType();
+    info.isContainer = info.type !== 'none';
+    // Detect distribution (Linux only)
+    if (process.platform === 'linux') {
+        info.distribution = await detectDistribution();
+    }
+    // Check for Ruby
+    info.hasRuby = await commandExists('ruby');
+    // Check for Metanorma
+    info.hasMetanorma = await commandExists('metanorma');
+    core.debug(`Container detection result: ${JSON.stringify(info)}`);
+    return info;
+}
+/**
+ * Detect the type of container environment
+ */
+async function detectContainerType() {
+    // Check for Docker: .dockerenv file
+    if (await fileExists('/.dockerenv')) {
+        core.debug('Detected Docker container (via /.dockerenv)');
+        return 'docker';
+    }
+    // Check cgroup for container indicators
+    try {
+        const cgroupPath = '/proc/1/cgroup';
+        if (await fileExists(cgroupPath)) {
+            const cgroupContent = await fs.promises.readFile(cgroupPath, 'utf-8');
+            const cgroupLower = cgroupContent.toLowerCase();
+            if (cgroupLower.includes('docker') ||
+                cgroupLower.includes('containerd')) {
+                core.debug('Detected Docker container (via /proc/1/cgroup)');
+                return 'docker';
+            }
+            if (cgroupLower.includes('podman')) {
+                core.debug('Detected Podman container');
+                return 'podman';
+            }
+            if (cgroupLower.includes('lxc')) {
+                core.debug('Detected LXC container');
+                return 'lxc';
+            }
+        }
+    }
+    catch (error) {
+        core.debug(`Error reading cgroup: ${error}`);
+    }
+    core.debug('No container detected');
+    return 'none';
+}
+/**
+ * Detect Linux distribution
+ */
+async function detectDistribution() {
+    // Check Alpine via /etc/alpine-release
+    if (await fileExists('/etc/alpine-release')) {
+        core.debug('Detected Alpine Linux distribution');
+        return 'alpine';
+    }
+    // Check for /etc/os-release
+    const osReleasePath = '/etc/os-release';
+    if (await fileExists(osReleasePath)) {
+        try {
+            const osReleaseContent = await fs.promises.readFile(osReleasePath, 'utf-8');
+            const osReleaseLower = osReleaseContent.toLowerCase();
+            if (osReleaseLower.includes('ubuntu')) {
+                core.debug('Detected Ubuntu distribution');
+                return 'ubuntu';
+            }
+            if (osReleaseLower.includes('debian')) {
+                core.debug('Detected Debian distribution');
+                return 'debian';
+            }
+        }
+        catch (error) {
+            core.debug(`Error reading os-release: ${error}`);
+        }
+    }
+    // Fallback to /etc/debian_version
+    if (await fileExists('/etc/debian_version')) {
+        core.debug('Detected Debian distribution (via /etc/debian_version)');
+        return 'debian';
+    }
+    core.debug('Could not detect specific Linux distribution');
+    return 'unknown';
+}
+/**
+ * Get the installation method based on user preference and environment
+ */
+async function getInstallationMethod(userPreference) {
+    const preference = userPreference.toLowerCase();
+    // Explicit user preferences
+    if (preference === platform_detector_1.InstallationMethod.Native) {
+        return {
+            method: platform_detector_1.InstallationMethod.Native,
+            reason: 'User explicitly requested native package manager installation'
+        };
+    }
+    if (preference === platform_detector_1.InstallationMethod.Gem) {
+        return {
+            method: platform_detector_1.InstallationMethod.Gem,
+            reason: 'User explicitly requested gem-based installation'
+        };
+    }
+    // Auto-detect
+    const containerInfo = await detectContainer();
+    if (containerInfo.isContainer) {
+        return {
+            method: platform_detector_1.InstallationMethod.Gem,
+            reason: `Running in ${containerInfo.type} container with ${containerInfo.distribution} distribution - using gem-based installation`
+        };
+    }
+    // Native OS - use native package manager by default
+    return {
+        method: platform_detector_1.InstallationMethod.Native,
+        reason: 'Running on native OS - using native package manager'
+    };
+}
+/**
+ * Check if a file exists
+ */
+async function fileExists(filePath) {
+    try {
+        await fs.promises.access(filePath);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+/**
+ * Check if a command exists
+ */
+async function commandExists(command) {
+    try {
+        let output = '';
+        let error = '';
+        const options = {
+            silent: true,
+            ignoreReturnCode: true,
+            listeners: {
+                stdout: (data) => {
+                    output += data.toString();
+                },
+                stderr: (data) => {
+                    error += data.toString();
+                }
+            }
+        };
+        const exitCode = await exec.exec('command', ['-v', command], options);
+        return exitCode === 0;
+    }
+    catch {
+        return false;
+    }
+}
+
+
+/***/ }),
+
+/***/ 3756:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GemfileLocksFetcher = void 0;
+const https = __importStar(__nccwpck_require__(5692));
+const http = __importStar(__nccwpck_require__(8611));
+const core = __importStar(__nccwpck_require__(7484));
+/**
+ * Fetcher for pre-built Gemfile.lock files from metanorma-gemfile-locks repository
+ */
+class GemfileLocksFetcher {
+    baseUrl = 'https://raw.githubusercontent.com/metanorma/metanorma-gemfile-locks/main';
+    indexUrl = `${this.baseUrl}/index.yaml`;
+    indexCache = null;
+    /**
+     * Simple YAML parser for the index file
+     * Handles basic YAML structure without external dependencies
+     */
+    parseYaml(text) {
+        try {
+            const lines = text.split('\n');
+            const result = {
+                metadata: {
+                    generated_at: '',
+                    local_count: 0,
+                    remote_count: 0,
+                    latest_version: ''
+                },
+                versions: [],
+                missing_versions: []
+            };
+            let currentSection = null;
+            let currentVersion = null;
+            for (const line of lines) {
+                const trimmed = line.trim();
+                // Skip empty lines and comments
+                if (!trimmed || trimmed.startsWith('#')) {
+                    continue;
+                }
+                // Detect section headers
+                if (trimmed === 'metadata:') {
+                    currentSection = 'metadata';
+                    continue;
+                }
+                else if (trimmed === 'versions:') {
+                    currentSection = 'versions';
+                    continue;
+                }
+                else if (trimmed === 'missing_versions:') {
+                    currentSection = 'missing_versions';
+                    continue;
+                }
+                // Parse key-value pairs based on current section
+                if (currentSection === 'metadata') {
+                    const match = trimmed.match(/^(\w+):\s*(.+)$/);
+                    if (match) {
+                        const [, key, value] = match;
+                        const cleanValue = value.replace(/^['"]|['"]$/g, '');
+                        if (key === 'generated_at') {
+                            result.metadata.generated_at = cleanValue;
+                        }
+                        else if (key === 'local_count') {
+                            result.metadata.local_count = parseInt(cleanValue, 10);
+                        }
+                        else if (key === 'remote_count') {
+                            result.metadata.remote_count = parseInt(cleanValue, 10);
+                        }
+                        else if (key === 'latest_version') {
+                            result.metadata.latest_version = cleanValue;
+                        }
+                    }
+                }
+                else if (currentSection === 'versions') {
+                    // Match: - version: '1.14.4' or - version: "1.14.4" or - version: 1.14.4
+                    const versionMatch = trimmed.match(/^-\s*version:\s*['"]?(\d+\.\d+\.\d+)['"]?$/);
+                    // Match: updated_at: '2025-01-15' (may have leading spaces due to YAML indentation)
+                    const updatedMatch = trimmed.match(/updated_at:\s*['"]?([^'"]+)['"]?$/);
+                    if (versionMatch) {
+                        // If we have a pending version, add it to the array
+                        if (currentVersion) {
+                            result.versions.push(currentVersion);
+                        }
+                        // Start a new version entry
+                        currentVersion = {
+                            version: versionMatch[1],
+                            updated_at: ''
+                        };
+                    }
+                    else if (updatedMatch && currentVersion) {
+                        // Update the current version with the updated_at value
+                        currentVersion.updated_at = updatedMatch[1];
+                    }
+                }
+                else if (currentSection === 'missing_versions') {
+                    const versionMatch = trimmed.match(/^-\s*['"]?(\d+\.\d+\.\d+)['"]?$/);
+                    if (versionMatch) {
+                        result.missing_versions.push(versionMatch[1]);
+                    }
+                }
+            }
+            // Don't forget to add the last version entry
+            if (currentVersion) {
+                result.versions.push(currentVersion);
+            }
+            return result;
+        }
+        catch (error) {
+            core.debug(`Failed to parse YAML: ${error}`);
+            return null;
+        }
+    }
+    /**
+     * Fetch content from URL via HTTPS/HTTP
+     */
+    async fetchUrl(url) {
+        return new Promise(resolve => {
+            const protocol = url.startsWith('https') ? https : http;
+            const request = protocol.get(url, res => {
+                if (res.statusCode !== 200) {
+                    core.debug(`Fetch failed with status ${res.statusCode} for ${url}`);
+                    resolve(null);
+                    return;
+                }
+                let data = '';
+                res.on('data', chunk => {
+                    data += chunk;
+                });
+                res.on('end', () => {
+                    resolve(data);
+                });
+            });
+            request.on('error', error => {
+                core.debug(`Fetch error for ${url}: ${error.message}`);
+                resolve(null);
+            });
+            request.setTimeout(10000, () => {
+                request.destroy();
+                core.debug(`Fetch timeout for ${url}`);
+                resolve(null);
+            });
+        });
+    }
+    /**
+     * Fetch the index.yaml to check version availability
+     * Results are cached for the lifetime of the fetcher instance
+     */
+    async fetchIndex() {
+        if (this.indexCache) {
+            return this.indexCache;
+        }
+        core.debug(`Fetching index from ${this.indexUrl}`);
+        const content = await this.fetchUrl(this.indexUrl);
+        if (!content) {
+            return null;
+        }
+        this.indexCache = this.parseYaml(content);
+        return this.indexCache;
+    }
+    /**
+     * Check if a specific version has a pre-built lock file
+     */
+    async isVersionAvailable(version) {
+        const index = await this.fetchIndex();
+        if (!index) {
+            return false;
+        }
+        const isAvailable = index.versions.some(v => v.version === version);
+        core.debug(`Version ${version} available in pre-built locks: ${isAvailable}`);
+        return isAvailable;
+    }
+    /**
+     * Download Gemfile.lock content for a specific version
+     */
+    async fetchGemfileLock(version) {
+        const url = `${this.baseUrl}/v${version}/Gemfile.lock`;
+        core.debug(`Fetching Gemfile.lock for version ${version} from ${url}`);
+        return this.fetchUrl(url);
+    }
+    /**
+     * Download Gemfile content for a specific version
+     */
+    async fetchGemfile(version) {
+        const url = `${this.baseUrl}/v${version}/Gemfile`;
+        core.debug(`Fetching Gemfile for version ${version} from ${url}`);
+        return this.fetchUrl(url);
+    }
+    /**
+     * Get the latest version from the index
+     */
+    async getLatestVersion() {
+        const index = await this.fetchIndex();
+        if (!index) {
+            return null;
+        }
+        return index.metadata.latest_version;
+    }
+    /**
+     * Get all available versions
+     */
+    async getAvailableVersions() {
+        const index = await this.fetchIndex();
+        if (!index) {
+            return [];
+        }
+        return index.versions.map(v => v.version);
+    }
+}
+exports.GemfileLocksFetcher = GemfileLocksFetcher;
+
+
+/***/ }),
+
 /***/ 1188:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -80,6 +544,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getInputs = getInputs;
 const core = __importStar(__nccwpck_require__(7484));
 const platform_detector_1 = __nccwpck_require__(4392);
+const container_detector_1 = __nccwpck_require__(9946);
 /**
  * Get and validate all inputs
  */
@@ -108,6 +573,40 @@ async function getInputs() {
     // Installation path
     result.installPath = process.env['GITHUB_WORKSPACE'] || '/';
     core.debug(`installPath = '${result.installPath}'`);
+    // Installation method input
+    const installationMethodInput = core.getInput('installation-method') || 'auto';
+    const { method: detectedMethod, reason } = await (0, container_detector_1.getInstallationMethod)(installationMethodInput);
+    result.installationMethod = detectedMethod;
+    core.info(`Installation method: ${result.installationMethod} (${reason})`);
+    // Bundler version (for gem-based installation)
+    const bundlerVersionInput = core.getInput('bundler-version');
+    result.bundlerVersion = bundlerVersionInput || '2.6.5';
+    core.debug(`bundlerVersion = '${result.bundlerVersion}'`);
+    // Custom Gemfile (for gem-based installation)
+    const gemfileInput = core.getInput('gemfile');
+    result.gemfile = gemfileInput || undefined;
+    if (result.gemfile) {
+        core.debug(`gemfile = '${result.gemfile}'`);
+    }
+    // Fontist update (for gem-based installation)
+    const fontistUpdateInput = core.getInput('fontist-update');
+    result.fontistUpdate =
+        (fontistUpdateInput || 'true').toUpperCase() === 'TRUE';
+    core.debug(`fontistUpdate = ${result.fontistUpdate}`);
+    // Bundle update (for gem-based installation)
+    const bundleUpdateInput = core.getInput('bundle-update');
+    result.bundleUpdate = (bundleUpdateInput || 'false').toUpperCase() === 'TRUE';
+    core.debug(`bundleUpdate = ${result.bundleUpdate}`);
+    // Use pre-built locks (for gem-based installation)
+    const usePrebuiltLocksInput = core.getInput('use-prebuilt-locks');
+    result.usePrebuiltLocks =
+        (usePrebuiltLocksInput || 'true').toUpperCase() !== 'FALSE';
+    core.debug(`usePrebuiltLocks = ${result.usePrebuiltLocks}`);
+    // Container detection (Linux only)
+    if (result.platform === platform_detector_1.Platform.Linux) {
+        result.containerInfo = await (0, container_detector_1.detectContainer)();
+        core.debug(`containerInfo = ${JSON.stringify(result.containerInfo)}`);
+    }
     return result;
 }
 
@@ -172,7 +671,15 @@ class BaseInstaller {
     async execCommand(command, args = [], options = {}) {
         const fullCommand = [command, ...args].join(' ');
         core.debug(`Executing: ${fullCommand}`);
-        return await exec.exec(command, args, options);
+        const result = await exec.exec(command, args, options);
+        // When ignoreReturnCode is true, exec returns an object with {code, stdout, stderr}
+        // Otherwise it returns the exit code directly
+        if (typeof result === 'number') {
+            return result;
+        }
+        // result is an object with code property
+        const code = result.code;
+        return code !== undefined ? code : 1; // Default to 1 (failure) if code is undefined
     }
     /**
      * Download a file from URL
@@ -204,18 +711,36 @@ class BaseInstaller {
     }
     /**
      * Check if a command exists
+     * Uses multiple methods for reliability
      */
     async commandExists(command) {
+        // Method 1: Try 'command -v'
         try {
-            await this.execCommand('command', ['-v', command], {
+            const exitCode = await this.execCommand('command', ['-v', command], {
                 silent: true,
                 ignoreReturnCode: true
             });
-            return true;
+            if (exitCode === 0) {
+                return true;
+            }
         }
-        catch {
-            return false;
+        catch (error) {
+            core.debug(`commandExists via 'command -v' failed for '${command}': ${error}`);
         }
+        // Method 2: Try 'which' (more reliable on some systems)
+        try {
+            const exitCode = await this.execCommand('which', [command], {
+                silent: true,
+                ignoreReturnCode: true
+            });
+            if (exitCode === 0) {
+                return true;
+            }
+        }
+        catch (error) {
+            core.debug(`commandExists via 'which' failed for '${command}': ${error}`);
+        }
+        return false;
     }
 }
 exports.BaseInstaller = BaseInstaller;
@@ -451,25 +976,836 @@ exports.ChocoInstaller = ChocoInstaller;
 
 /***/ }),
 
-/***/ 223:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ 7130:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GemAlpineInstaller = void 0;
+const gem_base_installer_1 = __nccwpck_require__(3304);
+const core = __importStar(__nccwpck_require__(7484));
+/**
+ * Alpine gem-based installer
+ * For Docker containers with Alpine base images
+ */
+class GemAlpineInstaller extends gem_base_installer_1.GemBaseInstaller {
+    /**
+     * Verify Ruby exists (Alpine has Ruby built-in)
+     */
+    async verifyRubyExists() {
+        if (!(await this.checkRubyInstalled())) {
+            throw new Error('Ruby is not installed but is required for gem-based installation.\n\n' +
+                'Alpine Linux should have Ruby available by default.\n' +
+                'Ensure your Docker image includes Ruby (e.g., alpine:latest).\n\n' +
+                'Alternatively, use installation-method: "native" for standalone binary installation.');
+        }
+    }
+    /**
+     * Install Ruby development headers for native gem compilation
+     */
+    async installRubyDevHeaders(_settings) {
+        core.startGroup('Installing Ruby development headers');
+        const packages = [
+            'ruby-dev',
+            'musl-dev',
+            'build-base',
+            'cmake',
+            'pkgconf',
+            'openssl-dev',
+            'libxml2-dev',
+            'libxslt-dev',
+            'yaml-dev',
+            'zlib-dev',
+            'curl-dev',
+            'sqlite-dev'
+        ];
+        core.info(`Installing packages: ${packages.join(', ')}`);
+        const updateExitCode = await this.execCommand('apk', ['update']);
+        if (updateExitCode !== 0) {
+            throw new Error('apk update failed');
+        }
+        const exitCode = await this.execCommand('apk', ['add', ...packages]);
+        if (exitCode !== 0) {
+            throw new Error('Failed to install Ruby development headers');
+        }
+        core.info('✓ Ruby development headers installed');
+        core.endGroup();
+    }
+    /**
+     * Install runtime dependencies
+     */
+    async installRuntimeDependencies(_settings) {
+        core.startGroup('Installing runtime dependencies');
+        const packages = [
+            'git',
+            'inkscape',
+            'openjdk11-jre',
+            'python3',
+            'fontconfig'
+        ];
+        core.info(`Installing packages: ${packages.join(', ')}`);
+        const exitCode = await this.execCommand('apk', ['add', ...packages]);
+        if (exitCode !== 0) {
+            throw new Error('Failed to install runtime dependencies');
+        }
+        core.info('✓ Runtime dependencies installed');
+        core.endGroup();
+    }
+    /**
+     * Install Metanorma via gem
+     */
+    async install(settings) {
+        core.startGroup('Installing Metanorma via gem (Alpine)');
+        try {
+            // Verify Ruby exists
+            await this.verifyRubyExists();
+            // Install Ruby development headers
+            await this.installRubyDevHeaders(settings);
+            // Install runtime dependencies
+            await this.installRuntimeDependencies(settings);
+            // Setup Gemfile
+            const gemfilePath = await this.setupGemfile(settings);
+            // Ensure Bundler
+            await this.ensureBundler(settings);
+            // Install gems
+            await this.installGems(settings, gemfilePath);
+            // Update Fontist (if enabled)
+            if (settings.fontistUpdate !== false) {
+                await this.updateFontist();
+            }
+            // Verify installation
+            await this.verifyInstallation();
+            core.info('✓ Metanorma installed successfully via gem');
+        }
+        finally {
+            core.endGroup();
+        }
+    }
+    /**
+     * Cleanup (no-op for gem installation)
+     */
+    async cleanup() {
+        // No cleanup needed for gem-based installation
+    }
+}
+exports.GemAlpineInstaller = GemAlpineInstaller;
+
+
+/***/ }),
+
+/***/ 3304:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GemBaseInstaller = void 0;
+const base_installer_1 = __nccwpck_require__(7122);
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
+const gemfile_locks_1 = __nccwpck_require__(3756);
+const terminal_1 = __nccwpck_require__(2062);
+/**
+ * Abstract base class for gem-based installers
+ * Provides common functionality for all gem-based installation methods
+ */
+class GemBaseInstaller extends base_installer_1.BaseInstaller {
+    fetcher;
+    terminal;
+    constructor() {
+        super();
+        this.fetcher = new gemfile_locks_1.GemfileLocksFetcher();
+        this.terminal = new terminal_1.Terminal();
+    }
+    /**
+     * Check if Ruby is installed
+     */
+    async checkRubyInstalled() {
+        try {
+            let output = '';
+            const options = {
+                silent: true,
+                ignoreReturnCode: true,
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    }
+                }
+            };
+            const exitCode = await this.execCommand('ruby', ['--version'], options);
+            if (exitCode === 0) {
+                this.terminal.info(`Ruby detected: ${output.trim()}`);
+                return true;
+            }
+            return false;
+        }
+        catch {
+            return false;
+        }
+    }
+    /**
+     * Check if Bundler is installed
+     */
+    async checkBundlerInstalled() {
+        try {
+            let output = '';
+            const options = {
+                silent: true,
+                ignoreReturnCode: true,
+                listeners: {
+                    stdout: (data) => {
+                        output += data.toString();
+                    }
+                }
+            };
+            const exitCode = await this.execCommand('bundle', ['--version'], options);
+            return exitCode === 0;
+        }
+        catch {
+            return false;
+        }
+    }
+    /**
+     * Ensure Bundler is installed
+     */
+    async ensureBundler(settings) {
+        if (!(await this.checkBundlerInstalled())) {
+            this.terminal.info('Bundler not found, installing...');
+            const bundlerVersion = settings.bundlerVersion || '2.6.5';
+            await this.execCommand('gem', [
+                'install',
+                'bundler',
+                '-v',
+                bundlerVersion
+            ]);
+        }
+        else {
+            this.terminal.info('Bundler already installed');
+        }
+    }
+    /**
+     * Check if a file exists
+     */
+    async fileExists(filePath) {
+        try {
+            await fs.promises.access(filePath);
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
+    /**
+     * Parse semantic version string
+     */
+    parseVersion(version) {
+        const match = version.match(/^(\d+)\.(\d+)\.(\d+)/);
+        if (!match)
+            return null;
+        return {
+            major: parseInt(match[1], 10),
+            minor: parseInt(match[2], 10),
+            patch: parseInt(match[3], 10)
+        };
+    }
+    /**
+     * Compare versions: a <= b
+     */
+    versionLessThanOrEqual(a, b) {
+        if (a.major !== b.major)
+            return a.major < b.major;
+        if (a.minor !== b.minor)
+            return a.minor < b.minor;
+        return a.patch <= b.patch;
+    }
+    /**
+     * Determine if fontist ~> 2.1 should be added to fix LoadError
+     * Versions <= 1.7.1 depend on fontist 2.0.3 which has a LoadError bug
+     */
+    shouldFixFontist(version) {
+        const parsed = this.parseVersion(version);
+        if (!parsed)
+            return false;
+        const hasBug = this.versionLessThanOrEqual(parsed, {
+            major: 1,
+            minor: 7,
+            patch: 1
+        });
+        if (hasBug) {
+            this.terminal.info(`[Experimental] Detected metanorma-cli ${version} which depends on buggy fontist 2.0.3`);
+            this.terminal.info(`[Experimental] Adding fontist ~> 2.1 to Gemfile to fix LoadError`);
+        }
+        return hasBug;
+    }
+    /**
+     * Setup Gemfile for installation
+     * Priority:
+     * 1. Custom gemfile path provided → Use as-is, no replacement
+     * 2. use-prebuilt-locks: false → Respect existing workspace Gemfile.lock
+     * 3. User has workspace Gemfile → Use existing Gemfile
+     * 4. User has workspace Gemfile.lock AND version matches → Use existing lock
+     * 5. Pre-built lock available from metanorma-gemfile-locks → Use with warning
+     * 6. Fallback: Dynamic Gemfile creation + bundle install
+     */
+    async setupGemfile(settings) {
+        // 1. Custom gemfile path → use as-is
+        if (settings.gemfile) {
+            this.terminal.info(`Using custom Gemfile: ${settings.gemfile}`);
+            process.env.BUNDLE_GEMFILE = settings.gemfile;
+            return settings.gemfile;
+        }
+        // Detect workspace directory (GITHUB_WORKSPACE or current working directory)
+        const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
+        const workspaceGemfile = path.join(workspaceDir, 'Gemfile');
+        const workspaceLock = path.join(workspaceDir, 'Gemfile.lock');
+        // Check for metanorma-docker standard location first
+        const dockerGemfile = '/setup/Gemfile';
+        if (await this.fileExists(dockerGemfile)) {
+            this.terminal.info(`Using existing Gemfile from metanorma-docker: ${dockerGemfile}`);
+            process.env.BUNDLE_GEMFILE = dockerGemfile;
+            return dockerGemfile;
+        }
+        // 2. Check if prebuilt locks are disabled
+        if (settings.usePrebuiltLocks === false) {
+            this.terminal.info('Pre-built locks disabled, respecting workspace Gemfile.lock');
+            return this.setupWorkspaceGemfile(settings, workspaceGemfile, workspaceLock);
+        }
+        // 3. Check for existing workspace Gemfile (respects user's Gemfile)
+        if (await this.fileExists(workspaceGemfile)) {
+            this.terminal.info(`Using existing Gemfile from workspace: ${workspaceGemfile}`);
+            return workspaceGemfile;
+        }
+        // 4. Check for existing workspace Gemfile.lock with matching version
+        if (await this.fileExists(workspaceLock)) {
+            const lockVersion = await this.extractMetanormaVersionFromLock(workspaceLock);
+            if (settings.version && lockVersion === settings.version) {
+                this.terminal.success(`Using existing Gemfile.lock (matches version ${settings.version})`);
+                return workspaceGemfile;
+            }
+        }
+        // 5. Try pre-built lock from metanorma-gemfile-locks
+        if (settings.version && settings.version !== 'latest') {
+            const isAvailable = await this.fetcher.isVersionAvailable(settings.version);
+            if (isAvailable) {
+                return await this.usePrebuiltGemfileLock(settings.version, workspaceGemfile, workspaceLock, workspaceDir);
+            }
+        }
+        // 6. Fallback: create Gemfile dynamically
+        return this.createDefaultGemfile(settings, workspaceGemfile);
+    }
+    /**
+     * Setup workspace Gemfile (respects existing files)
+     */
+    async setupWorkspaceGemfile(settings, workspaceGemfile, workspaceLock) {
+        // Check workspace Gemfile
+        if (await this.fileExists(workspaceGemfile)) {
+            this.terminal.info(`Using existing Gemfile from workspace: ${workspaceGemfile}`);
+            return workspaceGemfile;
+        }
+        // No Gemfile exists - create default one in workspace
+        return this.createDefaultGemfile(settings, workspaceGemfile);
+    }
+    /**
+     * Use pre-built Gemfile.lock from metanorma-gemfile-locks repository
+     */
+    async usePrebuiltGemfileLock(version, workspaceGemfile, workspaceLock, workspaceDir) {
+        this.terminal.info(`Fetching pre-built Gemfile.lock for version ${version}...`);
+        const gemfileContent = await this.fetcher.fetchGemfile(version);
+        const lockContent = await this.fetcher.fetchGemfileLock(version);
+        if (!gemfileContent || !lockContent) {
+            this.terminal.warning(`Failed to fetch pre-built files for version ${version}, falling back to dynamic installation`);
+            return this.createDefaultGemfile({ version }, workspaceGemfile);
+        }
+        const existingLock = await this.fileExists(workspaceLock) ? workspaceLock : null;
+        // Write pre-built files
+        await fs.promises.writeFile(workspaceGemfile, gemfileContent);
+        await fs.promises.writeFile(workspaceLock, lockContent);
+        // Warn or info based on whether we replaced an existing lock
+        if (existingLock) {
+            this.terminal.warnGemfileLockReplacement(existingLock, `metanorma-gemfile-locks/v${version}/Gemfile.lock`);
+        }
+        else {
+            this.terminal.infoPrebuiltLockUsed(version);
+        }
+        return workspaceGemfile;
+    }
+    /**
+     * Extract metanorma-cli version from Gemfile.lock
+     */
+    async extractMetanormaVersionFromLock(lockPath) {
+        try {
+            const content = await fs.promises.readFile(lockPath, 'utf-8');
+            // Match patterns like:
+            //     metanorma-cli (1.14.3)
+            // or
+            //     metanorma-cli (1.14.3 abcd123)
+            const match = content.match(/    metanorma-cli \((\d+\.\d+\.\d+)/);
+            return match ? match[1] : null;
+        }
+        catch {
+            return null;
+        }
+    }
+    /**
+     * Create default Gemfile dynamically
+     */
+    async createDefaultGemfile(settings, workspaceGemfile) {
+        let gemfileContent = 'source "https://rubygems.org"\n';
+        if (settings.version && settings.version !== 'latest') {
+            // [Experimental] Version-specific fontist fix
+            // Versions <= 1.7.1 depend on fontist 2.0.3 which has LoadError bug
+            const needsFontistFix = this.shouldFixFontist(settings.version);
+            if (needsFontistFix) {
+                gemfileContent += `gem 'fontist', '~> 2.1'\n`;
+            }
+            gemfileContent += `gem 'metanorma-cli', '${settings.version}'\n`;
+        }
+        else {
+            // When using latest, add fontist ~> 2.1 to avoid LoadError with fontist/manifest/install
+            // Fontist 2.0.3 has a bug where the manifest/install module cannot be loaded
+            gemfileContent += `gem 'fontist', '~> 2.1'\n`;
+            gemfileContent += `gem 'metanorma-cli'\n`;
+        }
+        await fs.promises.writeFile(workspaceGemfile, gemfileContent);
+        this.terminal.info(`Created default Gemfile at: ${workspaceGemfile}`);
+        return workspaceGemfile;
+    }
+    /**
+     * Update Gemfile with specific version
+     * [Experimental] Automatically adds fontist ~> 2.1 for versions <= 1.7.1
+     */
+    async updateGemfileVersion(gemfilePath, version) {
+        const content = await fs.promises.readFile(gemfilePath, 'utf-8');
+        const lines = content.split('\n');
+        // [Experimental] Check if we need to add fontist ~> 2.1
+        const needsFontistFix = this.shouldFixFontist(version);
+        // Find and update the metanorma-cli gem line
+        let metanormaUpdated = false;
+        let hasFontist = false;
+        const newLines = lines.map((line) => {
+            if (line.includes("gem 'metanorma-cli'") || line.includes('gem "metanorma-cli"')) {
+                metanormaUpdated = true;
+                // Preserve the quote style
+                const quote = line.includes('"') ? '"' : "'";
+                return `gem ${quote}metanorma-cli${quote}, ${quote}${version}${quote}`;
+            }
+            if (line.includes("gem 'fontist'") || line.includes('gem "fontist"')) {
+                hasFontist = true;
+            }
+            return line;
+        });
+        // If metanorma-cli not found, add it
+        if (!metanormaUpdated) {
+            // [Experimental] Add fontist ~> 2.1 before metanorma-cli if needed
+            if (needsFontistFix && !hasFontist) {
+                newLines.push(`gem 'fontist', '~> 2.1'`);
+            }
+            newLines.push(`gem 'metanorma-cli', '${version}'`);
+        }
+        else if (needsFontistFix && !hasFontist) {
+            // [Experimental] Add fontist ~> 2.1 if it doesn't exist
+            // Insert before the metanorma-cli line
+            const metanormaIndex = newLines.findIndex((line) => line.includes("gem 'metanorma-cli'") ||
+                line.includes('gem "metanorma-cli"'));
+            if (metanormaIndex >= 0) {
+                newLines.splice(metanormaIndex, 0, `gem 'fontist', '~> 2.1'`);
+            }
+        }
+        await fs.promises.writeFile(gemfilePath, newLines.join('\n'));
+        this.terminal.info(`[Experimental] Updated Gemfile at ${gemfilePath} with version ${version}`);
+    }
+    /**
+     * Run bundle install (respects Gemfile.lock)
+     */
+    async bundleInstall() {
+        this.terminal.info('Running bundle install (respects Gemfile.lock)');
+        const exitCode = await this.execCommand('bundle', ['install']);
+        if (exitCode !== 0) {
+            throw new Error('bundle install failed');
+        }
+    }
+    /**
+     * Run bundle update (updates to latest versions)
+     */
+    async bundleUpdate() {
+        this.terminal.info('Running bundle update (updates Gemfile.lock to latest)');
+        const exitCode = await this.execCommand('bundle', ['update']);
+        if (exitCode !== 0) {
+            throw new Error('bundle update failed');
+        }
+    }
+    /**
+     * Update Fontist formulas
+     */
+    async updateFontist() {
+        this.terminal.info('Updating Fontist formulas');
+        const exitCode = await this.execCommand('bundle', ['exec', 'fontist', 'update']);
+        if (exitCode !== 0) {
+            this.terminal.warning('fontist update failed, continuing...');
+        }
+    }
+    /**
+     * Verify installation by checking metanorma --version
+     */
+    async verifyInstallation() {
+        this.terminal.info('Verifying Metanorma installation');
+        let output = '';
+        const options = {
+            listeners: {
+                stdout: (data) => {
+                    output += data.toString();
+                }
+            }
+        };
+        const exitCode = await this.execCommand('bundle', ['exec', 'metanorma', '--version'], options);
+        if (exitCode === 0) {
+            this.terminal.success(`Metanorma installed successfully: ${output.trim()}`);
+        }
+        else {
+            throw new Error('metanorma --version failed');
+        }
+    }
+    /**
+     * Install gems based on version setting
+     * - version: 'latest' → bundle update
+     * - bundle-update: true → bundle update --except metanorma-cli (preserves version)
+     * - version: '1.7.1' → Update Gemfile, then bundle install
+     * - version: '' (default) → bundle install (respects Gemfile.lock)
+     */
+    async installGems(settings, gemfilePath) {
+        if (settings.bundleUpdate) {
+            this.terminal.info('Running bundle update (keeping metanorma-cli version pinned)...');
+            await this.bundleUpdateExceptMetanorma();
+            this.terminal.success('Dependencies updated (metanorma-cli version preserved)');
+        }
+        else if (settings.version === 'latest') {
+            this.terminal.info('version: "latest" specified → running bundle update');
+            await this.bundleUpdate();
+        }
+        else if (settings.version) {
+            this.terminal.info(`version: "${settings.version}" specified → running bundle install`);
+            await this.bundleInstall();
+        }
+        else {
+            this.terminal.info('no version specified → running bundle install (respects Gemfile.lock)');
+            await this.bundleInstall();
+        }
+    }
+    /**
+     * Run bundle update (keeping metanorma-cli version pinned)
+     */
+    async bundleUpdateExceptMetanorma() {
+        const exitCode = await this.execCommand('bundle', ['update', '--except', 'metanorma-cli']);
+        if (exitCode !== 0) {
+            throw new Error('bundle update --except metanorma-cli failed');
+        }
+    }
+}
+exports.GemBaseInstaller = GemBaseInstaller;
+
+
+/***/ }),
+
+/***/ 9722:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GemUbuntuInstaller = void 0;
+const gem_base_installer_1 = __nccwpck_require__(3304);
+const core = __importStar(__nccwpck_require__(7484));
+/**
+ * Ubuntu/Debian gem-based installer
+ * For Docker containers with Ubuntu/Debian base images
+ */
+class GemUbuntuInstaller extends gem_base_installer_1.GemBaseInstaller {
+    /**
+     * Verify Ruby exists (user must set up first)
+     */
+    async verifyRubyExists() {
+        if (!(await this.checkRubyInstalled())) {
+            throw new Error('Ruby is not installed but is required for gem-based installation.\n\n' +
+                'Please add this step BEFORE the setup action:\n' +
+                '  - uses: ruby/setup-ruby@v1\n' +
+                '    with:\n' +
+                '      ruby-version: "3.4"\n' +
+                '      bundler-cache: true\n\n' +
+                'Alternatively, use installation-method: "native" for standalone binary installation.');
+        }
+    }
+    /**
+     * Install Ruby development headers for native gem compilation
+     */
+    async installRubyDevHeaders(_settings) {
+        core.startGroup('Installing Ruby development headers');
+        const packages = [
+            'ruby-dev',
+            'build-essential',
+            'cmake',
+            'pkg-config',
+            'libssl-dev',
+            'libxml2-dev',
+            'libxslt1-dev',
+            'zlib1g-dev',
+            'libyaml-dev',
+            'libcurl4-openssl-dev',
+            'libsqlite3-dev'
+        ];
+        core.info(`Installing packages: ${packages.join(', ')}`);
+        const updateExitCode = await this.execCommand('sh', [
+            '-c',
+            'apt-get update'
+        ]);
+        if (updateExitCode !== 0) {
+            throw new Error('apt-get update failed');
+        }
+        const installExitCode = await this.execCommand('sh', [
+            '-c',
+            `apt-get install -y ${packages.join(' ')}`
+        ]);
+        if (installExitCode !== 0) {
+            throw new Error('Failed to install Ruby development headers');
+        }
+        core.info('✓ Ruby development headers installed');
+        core.endGroup();
+    }
+    /**
+     * Install runtime dependencies
+     */
+    async installRuntimeDependencies(_settings) {
+        core.startGroup('Installing runtime dependencies');
+        const packages = [
+            'git',
+            'inkscape',
+            'default-jre',
+            'python3',
+            'fontconfig'
+        ];
+        core.info(`Installing packages: ${packages.join(', ')}`);
+        const exitCode = await this.execCommand('sh', [
+            '-c',
+            `apt-get install -y ${packages.join(' ')}`
+        ]);
+        if (exitCode !== 0) {
+            throw new Error('Failed to install runtime dependencies');
+        }
+        core.info('✓ Runtime dependencies installed');
+        core.endGroup();
+    }
+    /**
+     * Install Metanorma via gem
+     */
+    async install(settings) {
+        core.startGroup('Installing Metanorma via gem (Ubuntu/Debian)');
+        try {
+            // Verify Ruby exists
+            await this.verifyRubyExists();
+            // Install Ruby development headers
+            await this.installRubyDevHeaders(settings);
+            // Install runtime dependencies
+            await this.installRuntimeDependencies(settings);
+            // Setup Gemfile
+            const gemfilePath = await this.setupGemfile(settings);
+            // Ensure Bundler
+            await this.ensureBundler(settings);
+            // Install gems
+            await this.installGems(settings, gemfilePath);
+            // Update Fontist (if enabled)
+            if (settings.fontistUpdate !== false) {
+                await this.updateFontist();
+            }
+            // Verify installation
+            await this.verifyInstallation();
+            core.info('✓ Metanorma installed successfully via gem');
+        }
+        finally {
+            core.endGroup();
+        }
+    }
+    /**
+     * Cleanup (no-op for gem installation)
+     */
+    async cleanup() {
+        // No cleanup needed for gem-based installation
+    }
+}
+exports.GemUbuntuInstaller = GemUbuntuInstaller;
+
+
+/***/ }),
+
+/***/ 223:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.InstallerFactory = void 0;
 const platform_detector_1 = __nccwpck_require__(4392);
 const brew_installer_1 = __nccwpck_require__(9527);
 const snap_installer_1 = __nccwpck_require__(2231);
 const choco_installer_1 = __nccwpck_require__(9335);
+const gem_ubuntu_installer_1 = __nccwpck_require__(9722);
+const gem_alpine_installer_1 = __nccwpck_require__(7130);
+const native_gem_installer_1 = __nccwpck_require__(5718);
+const core = __importStar(__nccwpck_require__(7484));
 /**
  * Factory for creating platform-specific installers
  */
 class InstallerFactory {
     /**
-     * Create an installer for the specified platform
+     * Create an installer for the specified platform and installation method
      */
-    static createInstaller(platform) {
+    static createInstaller(platform, installationMethod, settings) {
+        // Native installation method
+        if (installationMethod === platform_detector_1.InstallationMethod.Native) {
+            return this.createNativeInstaller(platform);
+        }
+        // Gem installation method
+        if (installationMethod === platform_detector_1.InstallationMethod.Gem) {
+            return this.createGemInstaller(platform, settings);
+        }
+        // Auto detection
+        return this.createAutoInstaller(platform, settings);
+    }
+    /**
+     * Create a native package manager installer
+     */
+    static createNativeInstaller(platform) {
         switch (platform) {
             case platform_detector_1.Platform.MacOS:
                 return new brew_installer_1.BrewInstaller();
@@ -478,11 +1814,51 @@ class InstallerFactory {
             case platform_detector_1.Platform.Windows:
                 return new choco_installer_1.ChocoInstaller();
             default:
-                throw new Error(`No installer available for platform: ${platform}`);
+                throw new Error(`No native installer available for platform: ${platform}`);
         }
     }
     /**
-     * Create an installer for the current platform
+     * Create a gem-based installer
+     */
+    static createGemInstaller(platform, settings) {
+        // If container detected, use container-specific installer
+        if (settings.containerInfo && settings.containerInfo.isContainer) {
+            const distribution = settings.containerInfo.distribution;
+            if (distribution === 'alpine') {
+                core.info('Using Alpine gem installer');
+                return new gem_alpine_installer_1.GemAlpineInstaller();
+            }
+            // Default to Ubuntu installer for ubuntu/debian/unknown
+            core.info('Using Ubuntu/Debian gem installer');
+            return new gem_ubuntu_installer_1.GemUbuntuInstaller();
+        }
+        // Native OS gem installation
+        core.info('Using native gem installer (user provides Ruby)');
+        return new native_gem_installer_1.NativeGemInstaller();
+    }
+    /**
+     * Auto-detect the best installer
+     */
+    static createAutoInstaller(platform, settings) {
+        // If container detected, use gem-based installation
+        if (settings.containerInfo && settings.containerInfo.isContainer) {
+            core.info('Auto-detected container environment → using gem-based installation');
+            return this.createGemInstaller(platform, settings);
+        }
+        // Default to native installation for non-container environments
+        core.info('Auto-detected native OS → using native package manager');
+        return this.createNativeInstaller(platform);
+    }
+    /**
+     * Create an installer for the specified platform (legacy method for backward compatibility)
+     * @deprecated Use createInstaller(platform, installationMethod, settings) instead
+     */
+    static createInstallerLegacy(platform) {
+        return this.createNativeInstaller(platform);
+    }
+    /**
+     * Create an installer for the current platform (legacy method for backward compatibility)
+     * @deprecated Use createInstaller() with settings instead
      */
     static createForCurrentPlatform() {
         const platform = process.platform;
@@ -499,6 +1875,284 @@ class InstallerFactory {
     }
 }
 exports.InstallerFactory = InstallerFactory;
+
+
+/***/ }),
+
+/***/ 5718:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.NativeGemInstaller = void 0;
+const gem_base_installer_1 = __nccwpck_require__(3304);
+const core = __importStar(__nccwpck_require__(7484));
+const platform_detector_1 = __nccwpck_require__(4392);
+/**
+ * Native OS gem-based installer
+ * For native macOS/Linux/Windows where user provides Ruby
+ * (via ruby/setup-ruby@v1 or manual installation)
+ */
+class NativeGemInstaller extends gem_base_installer_1.GemBaseInstaller {
+    /**
+     * Verify Ruby exists (user must set up first)
+     */
+    async verifyRubyExists() {
+        if (!(await this.checkRubyInstalled())) {
+            throw new Error('Ruby is not installed but is required for gem-based installation.\n\n' +
+                'Please add this step BEFORE the setup action:\n' +
+                '  - uses: ruby/setup-ruby@v1\n' +
+                '    with:\n' +
+                '      ruby-version: "3.4"\n' +
+                '      bundler-cache: true\n\n' +
+                'Alternatively, use installation-method: "native" for standalone binary installation.');
+        }
+    }
+    /**
+     * Install Ruby development headers and build tools
+     * For native Linux, we need to install development packages
+     * that ruby/setup-ruby@v1 doesn't provide
+     */
+    async installRubyDevHeaders(settings) {
+        // On Linux, install development packages needed for native gem extensions
+        if (settings.platform === platform_detector_1.Platform.Linux) {
+            core.startGroup('Installing build dependencies for native gems');
+            // Try apt-get first (Debian/Ubuntu)
+            const hasApt = await this.commandExists('apt-get');
+            if (hasApt) {
+                const packages = [
+                    'build-essential',
+                    'cmake',
+                    'pkg-config',
+                    'libssl-dev',
+                    'libxml2-dev',
+                    'libxslt1-dev',
+                    'zlib1g-dev',
+                    'libyaml-dev',
+                    'libcurl4-openssl-dev',
+                    'libsqlite3-dev'
+                ];
+                core.info(`Installing packages: ${packages.join(', ')}`);
+                const updateExitCode = await this.execCommand('sudo', [
+                    'apt-get',
+                    'update'
+                ]);
+                if (updateExitCode !== 0) {
+                    throw new Error('apt-get update failed');
+                }
+                const installExitCode = await this.execCommand('sudo', [
+                    'apt-get',
+                    'install',
+                    '-y',
+                    ...packages
+                ]);
+                if (installExitCode !== 0) {
+                    throw new Error('Failed to install build dependencies');
+                }
+                core.info('✓ Build dependencies installed');
+                core.endGroup();
+                return;
+            }
+            // Try apk (Alpine)
+            const hasApk = await this.commandExists('apk');
+            if (hasApk) {
+                const packages = [
+                    'build-base',
+                    'cmake',
+                    'openssl-dev',
+                    'libxml2-dev',
+                    'libxslt-dev',
+                    'yaml-dev',
+                    'zlib-dev',
+                    'curl-dev',
+                    'sqlite-dev'
+                ];
+                core.info(`Installing packages: ${packages.join(', ')}`);
+                const exitCode = await this.execCommand('sudo', ['apk', 'add', ...packages]);
+                if (exitCode !== 0) {
+                    throw new Error('Failed to install build dependencies');
+                }
+                core.info('✓ Build dependencies installed');
+                core.endGroup();
+                return;
+            }
+            core.warning('Could not detect package manager. Native gems may fail to build.');
+            core.endGroup();
+        }
+        else {
+            core.debug('Skipping Ruby dev headers (not needed on macOS/Windows)');
+        }
+    }
+    /**
+     * Install platform-specific runtime dependencies only
+     * Ruby is already set up by user via ruby/setup-ruby@v1
+     */
+    async installRuntimeDependencies(settings) {
+        core.startGroup('Installing runtime dependencies');
+        switch (settings.platform) {
+            case platform_detector_1.Platform.MacOS:
+                await this.installMacOSDependencies();
+                break;
+            case platform_detector_1.Platform.Linux:
+                await this.installLinuxDependencies();
+                break;
+            case platform_detector_1.Platform.Windows:
+                await this.installWindowsDependencies();
+                break;
+        }
+        core.info('✓ Runtime dependencies installed');
+        core.endGroup();
+    }
+    /**
+     * Install macOS runtime dependencies
+     */
+    async installMacOSDependencies() {
+        // Check if Inkscape is installed
+        const hasInkscape = await this.commandExists('inkscape');
+        if (!hasInkscape) {
+            core.info('Installing Inkscape via Homebrew...');
+            await this.execCommand('brew', ['install', 'inkscape']);
+        }
+        // Check for Python (usually pre-installed on macOS)
+        const hasPython = await this.commandExists('python3');
+        if (!hasPython) {
+            core.warning('Python3 not found. Some Metanorma features may not work.');
+        }
+    }
+    /**
+     * Install Linux runtime dependencies
+     */
+    async installLinuxDependencies() {
+        // Try apt-get first (Debian/Ubuntu)
+        const hasApt = await this.commandExists('apt-get');
+        if (hasApt) {
+            const packages = ['git', 'inkscape', 'default-jre', 'fontconfig'];
+            core.info(`Installing packages via apt-get: ${packages.join(', ')}`);
+            await this.execCommand('sudo', [
+                'apt-get',
+                'install',
+                '-y',
+                ...packages
+            ]);
+            return;
+        }
+        // Try yum (RHEL/CentOS/Fedora)
+        const hasYum = await this.commandExists('yum');
+        if (hasYum) {
+            const packages = ['git', 'inkscape', 'java-11-openjdk', 'fontconfig'];
+            core.info(`Installing packages via yum: ${packages.join(', ')}`);
+            await this.execCommand('sudo', ['yum', 'install', '-y', ...packages]);
+            return;
+        }
+        // Try dnf (Fedora)
+        const hasDnf = await this.commandExists('dnf');
+        if (hasDnf) {
+            const packages = ['git', 'inkscape', 'java-11-openjdk', 'fontconfig'];
+            core.info(`Installing packages via dnf: ${packages.join(', ')}`);
+            await this.execCommand('sudo', ['dnf', 'install', '-y', ...packages]);
+            return;
+        }
+        // Try apk (Alpine)
+        const hasApk = await this.commandExists('apk');
+        if (hasApk) {
+            const packages = ['git', 'inkscape', 'openjdk11-jre', 'fontconfig'];
+            core.info(`Installing packages via apk: ${packages.join(', ')}`);
+            await this.execCommand('apk', ['add', ...packages]);
+            return;
+        }
+        core.warning('Could not detect package manager. Please install Git, Inkscape, JRE, and fontconfig manually.');
+    }
+    /**
+     * Install Windows runtime dependencies
+     */
+    async installWindowsDependencies() {
+        // Check for Chocolatey
+        const hasChoco = await this.commandExists('choco');
+        if (hasChoco) {
+            core.info('Installing dependencies via Chocolatey...');
+            await this.execCommand('choco', [
+                'install',
+                'inkscape',
+                '-y',
+                '--no-progress'
+            ]);
+        }
+        else {
+            core.warning('Chocolatey not found. Please install Inkscape manually.');
+        }
+    }
+    /**
+     * Install Metanorma via gem on native OS
+     */
+    async install(settings) {
+        core.startGroup('Installing Metanorma via gem (Native OS)');
+        try {
+            // Verify Ruby exists
+            await this.verifyRubyExists();
+            // Install build dependencies for native gem extensions
+            await this.installRubyDevHeaders(settings);
+            // Install runtime dependencies
+            await this.installRuntimeDependencies(settings);
+            // Setup Gemfile
+            const gemfilePath = await this.setupGemfile(settings);
+            // Ensure Bundler
+            await this.ensureBundler(settings);
+            // Install gems
+            await this.installGems(settings, gemfilePath);
+            // Update Fontist (if enabled)
+            if (settings.fontistUpdate !== false) {
+                await this.updateFontist();
+            }
+            // Verify installation
+            await this.verifyInstallation();
+            core.info('✓ Metanorma installed successfully via gem');
+        }
+        finally {
+            core.endGroup();
+        }
+    }
+    /**
+     * Cleanup (no-op for gem installation)
+     */
+    async cleanup() {
+        // No cleanup needed for gem-based installation
+    }
+}
+exports.NativeGemInstaller = NativeGemInstaller;
 
 
 /***/ }),
@@ -545,19 +2199,106 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SnapInstaller = void 0;
 const base_installer_1 = __nccwpck_require__(7122);
 const core = __importStar(__nccwpck_require__(7484));
+const version_1 = __nccwpck_require__(191);
+/**
+ * Map Node.js architecture to Snap architecture
+ */
+function mapNodeArchToSnapArch(nodeArch) {
+    // Node.js returns 'x64' for amd64, 'arm64' for arm64
+    switch (nodeArch) {
+        case 'arm64':
+        case 'aarch64':
+            return 'arm64';
+        case 'x64':
+        case 'amd64':
+        case 'x86_64':
+        default:
+            return 'amd64';
+    }
+}
 /**
  * Linux Snap installer
  * Installs Metanorma using Snap package manager
+ *
+ * Snap installation methods:
+ * 1. Revision-based: Install a specific revision for a version
+ * 2. Channel-based: Install from a channel (stable, candidate, beta, edge)
+ *
+ * When a version is specified, the action will:
+ * - Look up the revision number for that version from mnenv (if available)
+ * - Install using --revision to pin that specific version
+ * - Optionally track a channel for future updates
+ *
+ * If mnenv is not available, falls back to channel-based installation.
  */
 class SnapInstaller extends base_installer_1.BaseInstaller {
+    versionStorePromise = null;
+    /**
+     * Get the architecture-specific revision for a version
+     * Returns null if version store is not available or version not found.
+     */
+    async getRevisionForVersion(version) {
+        const store = await this.getVersionStore();
+        if (!store) {
+            core.debug('Version store not available, cannot look up revision');
+            return null;
+        }
+        const provider = store.getSnapProvider();
+        if (!provider.isAvailable(version)) {
+            core.warning(`Version ${version} is not available in snap versions`);
+            return null;
+        }
+        // Map Node.js arch to snap arch
+        const snapArch = mapNodeArchToSnapArch(process.arch);
+        const revision = provider.getRevision(version, snapArch);
+        const channel = provider.getChannel(version, snapArch);
+        if (!revision || !channel) {
+            core.warning(`No revision found for version ${version} on ${snapArch}`);
+            return null;
+        }
+        return { revision, channel };
+    }
+    getVersionStore() {
+        if (!this.versionStorePromise) {
+            this.versionStorePromise = (0, version_1.getVersionStore)();
+        }
+        return this.versionStorePromise;
+    }
     async install(settings) {
         core.startGroup('Installing Metanorma via Snap');
         try {
-            // Try to install metanorma directly
             let args = ['snap', 'install', 'metanorma'];
             if (settings.version) {
-                const channel = `${settings.version}/${settings.snapChannel}`;
-                core.info(`Installing Metanorma version ${settings.version} from ${settings.snapChannel} channel...`);
+                // Try version-based installation using revision pinning from mnenv
+                const revisionInfo = await this.getRevisionForVersion(settings.version);
+                if (revisionInfo) {
+                    core.info(`Installing Metanorma version ${settings.version} ` +
+                        `(revision ${revisionInfo.revision}, channel: ${revisionInfo.channel})...`);
+                    // Install with revision pinning
+                    args.push(`--revision=${revisionInfo.revision}`, '--classic');
+                    const exitCode = await this.execCommand('sudo', args);
+                    if (exitCode !== 0) {
+                        throw new Error(`Snap installation failed with exit code ${exitCode}`);
+                    }
+                    // Optionally hold the revision to prevent auto-refresh
+                    // This ensures the specific version stays installed
+                    core.info(`Holding Metanorma at revision ${revisionInfo.revision}...`);
+                    await this.execCommand('snap', ['refresh', 'metanorma', '--hold'], {
+                        ignoreReturnCode: true
+                    });
+                    core.info(`✓ Metanorma ${settings.version} installed successfully via Snap ` +
+                        `(revision ${revisionInfo.revision}, held at this version)`);
+                    return;
+                }
+                // Fall through to channel-based if revision not found or mnenv unavailable
+                core.info(`Revision lookup not available for version ${settings.version}, ` +
+                    `using channel-based installation`);
+            }
+            // Channel-based installation (latest or when version not found/mnenv unavailable)
+            if (settings.version) {
+                const channel = `${settings.snapChannel}`;
+                core.info(`Installing Metanorma from ${channel} channel ` +
+                    `(version ${settings.version} requested, using channel for installation)...`);
                 args.push(`--channel=${channel}`, '--classic');
             }
             else {
@@ -627,12 +2368,23 @@ const core = __importStar(__nccwpck_require__(7484));
 const input_helper_1 = __nccwpck_require__(5285);
 const installer_factory_1 = __nccwpck_require__(223);
 const stateHelper = __importStar(__nccwpck_require__(590));
+const version_1 = __nccwpck_require__(191);
 async function run() {
+    let versionStore = null;
     try {
+        // Initialize version store to get version data from mnenv
+        // This is best-effort - if it fails, we'll fall back to existing behavior
+        versionStore = await (0, version_1.getVersionStore)();
+        if (versionStore) {
+            core.info('Version store initialized successfully');
+        }
+        else {
+            core.info('Version store not available (mnenv CLI or prerequisites missing), using fallback behavior');
+        }
         // Get inputs
         const settings = await (0, input_helper_1.getInputs)();
         // Create and use installer
-        const installer = installer_factory_1.InstallerFactory.createForCurrentPlatform();
+        const installer = installer_factory_1.InstallerFactory.createInstaller(settings.platform, settings.installationMethod, settings);
         // Install Metanorma
         await installer.install(settings);
         // Set outputs if supported by the action
@@ -642,10 +2394,24 @@ async function run() {
     catch (error) {
         core.setFailed(`${error?.message ?? error}`);
     }
+    finally {
+        // Clean up version store (removes cloned .mnenv-versions directory)
+        if (versionStore) {
+            await versionStore.cleanup();
+        }
+    }
 }
 async function cleanup() {
     try {
-        const installer = installer_factory_1.InstallerFactory.createForCurrentPlatform();
+        // Clean up version store if it was initialized
+        // Even if the main action failed, we should clean up the .mnenv-versions directory
+        const versionStore = await (0, version_1.getVersionStore)();
+        if (versionStore) {
+            await versionStore.cleanup();
+        }
+        // Get inputs to determine platform and installation method
+        const settings = await (0, input_helper_1.getInputs)();
+        const installer = installer_factory_1.InstallerFactory.createInstaller(settings.platform, settings.installationMethod, settings);
         await installer.cleanup();
     }
     catch (error) {
@@ -656,6 +2422,7 @@ function setOutputs(settings) {
     // Set outputs for downstream actions
     core.setOutput('version', settings.version || 'latest');
     core.setOutput('platform', settings.platform);
+    core.setOutput('installation-method', settings.installationMethod);
 }
 // Main entry point - use async IIFE to ensure proper awaiting
 (async () => {
@@ -691,7 +2458,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Platform = void 0;
+exports.InstallationMethod = exports.Platform = void 0;
 exports.detectPlatform = detectPlatform;
 exports.isMacOS = isMacOS;
 exports.isLinux = isLinux;
@@ -705,6 +2472,15 @@ var Platform;
     Platform["Linux"] = "linux";
     Platform["Windows"] = "win32";
 })(Platform || (exports.Platform = Platform = {}));
+/**
+ * Installation method enumeration
+ */
+var InstallationMethod;
+(function (InstallationMethod) {
+    InstallationMethod["Auto"] = "auto";
+    InstallationMethod["Native"] = "native";
+    InstallationMethod["Gem"] = "gem";
+})(InstallationMethod || (exports.InstallationMethod = InstallationMethod = {}));
 /**
  * Detect the current platform
  */
@@ -834,6 +2610,1041 @@ function getInstallPath() {
 if (!exports.IsPost) {
     core.saveState('isPost', 'true');
 }
+
+
+/***/ }),
+
+/***/ 2062:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Terminal = exports.AnsiColor = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+/**
+ * ANSI color codes for terminal output
+ */
+var AnsiColor;
+(function (AnsiColor) {
+    AnsiColor["Reset"] = "\u001B[0m";
+    AnsiColor["Bright"] = "\u001B[1m";
+    AnsiColor["Dim"] = "\u001B[2m";
+    AnsiColor["Underscore"] = "\u001B[4m";
+    AnsiColor["Blink"] = "\u001B[5m";
+    AnsiColor["Reverse"] = "\u001B[7m";
+    AnsiColor["Hidden"] = "\u001B[8m";
+    AnsiColor["FgBlack"] = "\u001B[30m";
+    AnsiColor["FgRed"] = "\u001B[31m";
+    AnsiColor["FgGreen"] = "\u001B[32m";
+    AnsiColor["FgYellow"] = "\u001B[33m";
+    AnsiColor["FgBlue"] = "\u001B[34m";
+    AnsiColor["FgMagenta"] = "\u001B[35m";
+    AnsiColor["FgCyan"] = "\u001B[36m";
+    AnsiColor["FgWhite"] = "\u001B[37m";
+    AnsiColor["BgBlack"] = "\u001B[40m";
+    AnsiColor["BgRed"] = "\u001B[41m";
+    AnsiColor["BgGreen"] = "\u001B[42m";
+    AnsiColor["BgYellow"] = "\u001B[43m";
+    AnsiColor["BgBlue"] = "\u001B[44m";
+    AnsiColor["BgMagenta"] = "\u001B[45m";
+    AnsiColor["BgCyan"] = "\u001B[46m";
+    AnsiColor["BgWhite"] = "\u001B[47m";
+})(AnsiColor || (exports.AnsiColor = AnsiColor = {}));
+/**
+ * Terminal class for colored and formatted output
+ * Automatically detects color support and gracefully degrades to plain text
+ */
+class Terminal {
+    supportsColor;
+    constructor() {
+        this.supportsColor = this.detectColorSupport();
+    }
+    /**
+     * Detect if the terminal supports color output
+     */
+    detectColorSupport() {
+        // GitHub Actions always supports color
+        if (process.env.GITHUB_ACTIONS === 'true') {
+            return true;
+        }
+        // Check CI environment variables
+        if (process.env.CI === 'true') {
+            return true;
+        }
+        // Check for COLORTERM variable
+        if (process.env.COLORTERM && process.env.COLORTERM !== '') {
+            return true;
+        }
+        // Check TERM variable (but exclude 'dumb' which doesn't support color)
+        const term = process.env.TERM;
+        if (term && term !== 'dumb' && term !== '') {
+            return true;
+        }
+        // Default to false for unknown environments
+        return false;
+    }
+    /**
+     * Apply color to text if color is supported
+     */
+    colorize(text, color) {
+        if (!this.supportsColor) {
+            return text;
+        }
+        return `${color}${text}${AnsiColor.Reset}`;
+    }
+    /**
+     * Print a warning message with yellow color
+     */
+    warning(message) {
+        const icon = '⚠️ ';
+        const coloredMessage = this.colorize(`${icon}WARNING: ${message}`, AnsiColor.FgYellow);
+        core.warning(coloredMessage);
+        this.echo(coloredMessage);
+    }
+    /**
+     * Print an error message with red color
+     */
+    error(message) {
+        const icon = '❌ ';
+        const coloredMessage = this.colorize(`${icon}ERROR: ${message}`, AnsiColor.FgRed);
+        core.error(coloredMessage);
+        this.echo(coloredMessage);
+    }
+    /**
+     * Print a success message with green color
+     */
+    success(message) {
+        const icon = '✅ ';
+        const coloredMessage = this.colorize(`${icon}${message}`, AnsiColor.FgGreen);
+        core.info(coloredMessage);
+        this.echo(coloredMessage);
+    }
+    /**
+     * Print an info message with blue color
+     */
+    info(message) {
+        const icon = 'ℹ️ ';
+        const coloredMessage = this.colorize(`${icon}${message}`, AnsiColor.FgBlue);
+        core.info(coloredMessage);
+        this.echo(coloredMessage);
+    }
+    /**
+     * Print a debug message with dim color
+     */
+    debug(message) {
+        const coloredMessage = this.colorize(message, AnsiColor.Dim);
+        core.debug(coloredMessage);
+    }
+    /**
+     * Write directly to stdout for immediate visibility
+     */
+    echo(message) {
+        process.stdout.write(message + '\n');
+    }
+    /**
+     * Display a prominent warning box for Gemfile.lock replacement
+     */
+    warnGemfileLockReplacement(originalLock, prebuiltLock) {
+        const lines = [
+            '',
+            this.colorize('┌──────────────────────────────────────────────────────────────────┐', AnsiColor.FgYellow),
+            this.colorize('│ ⚠️  GEMFILE.LOCK REPLACED WITH PRE-BUILT VERSION                 │', AnsiColor.FgYellow),
+            this.colorize('├──────────────────────────────────────────────────────────────────┤', AnsiColor.FgYellow),
+            this.colorize('│ Your Gemfile.lock has been replaced with a pre-tested lock file  │', AnsiColor.FgYellow),
+            this.colorize('│ from metanorma-gemfile-locks repository.                         │', AnsiColor.FgYellow),
+            this.colorize('│                                                                  │', AnsiColor.FgYellow),
+            this.colorize(`│ Original: ${this.padRight(originalLock, 57)}│`, AnsiColor.FgYellow),
+            this.colorize(`│ Pre-built: ${this.padRight(prebuiltLock, 57)}│`, AnsiColor.FgYellow),
+            this.colorize('│                                                                  │', AnsiColor.FgYellow),
+            this.colorize('│ This ensures deterministic, tested dependency resolution.        │', AnsiColor.FgYellow),
+            this.colorize('│                                                                  │', AnsiColor.FgYellow),
+            this.colorize('│ To disable this behavior, use:                                   │', AnsiColor.FgYellow),
+            this.colorize('│   use-prebuilt-locks: false                                      │', AnsiColor.FgCyan),
+            this.colorize('└──────────────────────────────────────────────────────────────────┘', AnsiColor.FgYellow),
+            ''
+        ];
+        lines.forEach(line => this.echo(line));
+    }
+    /**
+     * Pad a string to a specific length by truncating with ellipsis if needed
+     */
+    padRight(str, length) {
+        if (str.length > length) {
+            return str.substring(0, length - 3) + '...';
+        }
+        return str.padEnd(length);
+    }
+    /**
+     * Display an info box about pre-built lock file usage
+     */
+    infoPrebuiltLockUsed(version) {
+        const lines = [
+            '',
+            this.colorize('┌──────────────────────────────────────────────────────────────────┐', AnsiColor.FgGreen),
+            this.colorize(`│ ✅ USING PRE-BUILT GEMFILE.LOCK FOR VERSION ${this.padRight(version, 34)}│`, AnsiColor.FgGreen),
+            this.colorize('├──────────────────────────────────────────────────────────────────┤', AnsiColor.FgGreen),
+            this.colorize('│ Using pre-tested Gemfile.lock from metanorma-gemfile-locks       │', AnsiColor.FgGreen),
+            this.colorize('│ repository for deterministic, tested dependency resolution.      │', AnsiColor.FgGreen),
+            this.colorize('└──────────────────────────────────────────────────────────────────┘', AnsiColor.FgGreen),
+            ''
+        ];
+        lines.forEach(line => this.echo(line));
+    }
+}
+exports.Terminal = Terminal;
+
+
+/***/ }),
+
+/***/ 2801:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MnenvClient = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+const exec = __importStar(__nccwpck_require__(5236));
+const io = __importStar(__nccwpck_require__(4994));
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
+const os_1 = __nccwpck_require__(857);
+/**
+ * MnenvClient handles interaction with the mnenv CLI.
+ * Responsibilities:
+ * - Clone metanorma/versions repository
+ * - Install Ruby dependencies (bundle install)
+ * - Execute mnenv CLI and capture JSON output
+ * - Clean up cloned repository
+ *
+ * @sealed This class should not be extended.
+ */
+class MnenvClient {
+    VERSIONS_REPO = 'https://github.com/metanorma/versions.git';
+    DEFAULT_BRANCH = 'main';
+    CLONE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    EXEC_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+    repoDir = null;
+    isInitialized = false;
+    initializationFailed = false;
+    /**
+     * Initialize the client by cloning the versions repository and installing dependencies.
+     * Returns true if initialization succeeded, false otherwise.
+     */
+    async initialize() {
+        if (this.isInitialized) {
+            return true;
+        }
+        if (this.initializationFailed) {
+            core.warning('MnenvClient previously failed initialization, skipping retry');
+            return false;
+        }
+        try {
+            const workspace = process.env.GITHUB_WORKSPACE || (0, os_1.homedir)();
+            this.repoDir = path.join(workspace, '.mnenv-versions');
+            // Validate prerequisites
+            if (!(await this.checkPrerequisites())) {
+                this.initializationFailed = true;
+                return false;
+            }
+            await this.cloneRepository();
+            await this.installDependencies();
+            this.isInitialized = true;
+            // Save repo directory path to state for cleanup in post-action
+            core.saveState('mnenv-repo-dir', this.repoDir);
+            return true;
+        }
+        catch (error) {
+            this.initializationFailed = true;
+            core.warning(`MnenvClient initialization failed: ${error}`);
+            return false;
+        }
+    }
+    /**
+     * Fetch all platform version data from mnenv CLI.
+     * Returns null if mnenv is not available or fails.
+     */
+    async fetchAllVersions() {
+        if (!this.isInitialized) {
+            core.warning('MnenvClient not initialized, cannot fetch versions');
+            return null;
+        }
+        try {
+            core.info('Fetching version data from mnenv CLI...');
+            const output = await this.executeMnenv(['list-all', '--format', 'json']);
+            if (!output || output.trim().length === 0) {
+                core.warning('mnenv CLI returned empty output');
+                return null;
+            }
+            const data = JSON.parse(output);
+            // Validate data structure
+            if (!this.validateMnenvData(data)) {
+                core.warning('mnenv CLI returned invalid data structure');
+                return null;
+            }
+            this.logSummary(data);
+            return data;
+        }
+        catch (error) {
+            core.warning(`Failed to fetch versions from mnenv: ${error}`);
+            return null;
+        }
+    }
+    /**
+     * Clean up cloned repository.
+     * This is safe to call even if initialization failed.
+     */
+    async cleanup() {
+        // Also check state file for repo dir from previous run
+        const stateRepoDir = core.getState('mnenv-repo-dir');
+        const dirsToClean = new Set();
+        if (this.repoDir) {
+            dirsToClean.add(this.repoDir);
+        }
+        if (stateRepoDir) {
+            dirsToClean.add(stateRepoDir);
+        }
+        for (const dir of dirsToClean) {
+            if (fs.existsSync(dir)) {
+                core.info(`Cleaning up ${dir}...`);
+                try {
+                    await io.rmRF(dir);
+                    core.info(`Successfully cleaned up ${dir}`);
+                }
+                catch (error) {
+                    core.warning(`Failed to cleanup ${dir}: ${error}`);
+                }
+            }
+        }
+        // Clear state
+        core.saveState('mnenv-repo-dir', '');
+    }
+    /**
+     * Check if all prerequisites are available (git, bundle, ruby)
+     */
+    async checkPrerequisites() {
+        const commands = ['git', 'bundle', 'ruby'];
+        for (const cmd of commands) {
+            const exitCode = await exec.exec(cmd, ['--version'], {
+                silent: true,
+                ignoreReturnCode: true
+            });
+            if (exitCode !== 0) {
+                core.warning(`Prerequisite check failed: ${cmd} is not available`);
+                return false;
+            }
+        }
+        return true;
+    }
+    async cloneRepository() {
+        if (!this.repoDir) {
+            throw new Error('Repository directory not set');
+        }
+        // Remove existing directory if present
+        if (fs.existsSync(this.repoDir)) {
+            core.debug(`Removing existing directory: ${this.repoDir}`);
+            await io.rmRF(this.repoDir);
+        }
+        core.info(`Cloning metanorma/versions to ${this.repoDir}...`);
+        const cloneArgs = [
+            'clone',
+            '--depth=1',
+            `--branch=${this.DEFAULT_BRANCH}`,
+            this.VERSIONS_REPO,
+            this.repoDir
+        ];
+        const exitCode = await exec.exec('git', cloneArgs);
+        if (exitCode !== 0) {
+            throw new Error(`git clone failed with exit code ${exitCode}`);
+        }
+        core.info('Repository cloned successfully');
+    }
+    async installDependencies() {
+        if (!this.repoDir) {
+            throw new Error('Repository directory not set');
+        }
+        core.info('Installing Ruby dependencies...');
+        const options = { cwd: this.repoDir };
+        const exitCode = await exec.exec('bundle', ['install'], options);
+        if (exitCode !== 0) {
+            throw new Error(`bundle install failed with exit code ${exitCode}`);
+        }
+        core.info('Dependencies installed');
+    }
+    async executeMnenv(args) {
+        if (!this.repoDir) {
+            throw new Error('Repository directory not set');
+        }
+        let output = '';
+        let error = '';
+        const options = {
+            cwd: this.repoDir,
+            silent: true,
+            listeners: {
+                stdout: (data) => { output += data.toString(); },
+                stderr: (data) => { error += data.toString(); }
+            }
+        };
+        const exitCode = await exec.exec('bundle', ['exec', 'mnenv', ...args], options);
+        if (exitCode !== 0) {
+            throw new Error(`mnenv failed with exit code ${exitCode}: ${error}`);
+        }
+        return output;
+    }
+    /**
+     * Validate the structure of mnenv data
+     */
+    validateMnenvData(data) {
+        return (data &&
+            typeof data === 'object' &&
+            data.gemfile &&
+            typeof data.gemfile.count === 'number' &&
+            typeof data.gemfile.latest === 'string' &&
+            Array.isArray(data.gemfile.versions) &&
+            data.snap &&
+            typeof data.snap.count === 'number' &&
+            typeof data.snap.latest === 'string' &&
+            Array.isArray(data.snap.versions) &&
+            data.homebrew &&
+            typeof data.homebrew.count === 'number' &&
+            typeof data.homebrew.latest === 'string' &&
+            Array.isArray(data.homebrew.versions) &&
+            data.chocolatey &&
+            typeof data.chocolatey.count === 'number' &&
+            typeof data.chocolatey.latest === 'string' &&
+            Array.isArray(data.chocolatey.versions));
+    }
+    logSummary(data) {
+        core.info('Version data loaded:');
+        core.info(`  Gemfile: ${data.gemfile.count} versions (latest: ${data.gemfile.latest})`);
+        core.info(`  Snap: ${data.snap.count} versions (latest: ${data.snap.latest})`);
+        core.info(`  Homebrew: ${data.homebrew.count} versions (latest: ${data.homebrew.latest})`);
+        core.info(`  Chocolatey: ${data.chocolatey.count} versions (latest: ${data.chocolatey.latest})`);
+    }
+}
+exports.MnenvClient = MnenvClient;
+
+
+/***/ }),
+
+/***/ 191:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * Version management module.
+ *
+ * Provides unified access to Metanorma version information
+ * across all platforms (gemfile, snap, homebrew, chocolatey).
+ *
+ * @example
+ * ```typescript
+ * import { getVersionStore } from './version';
+ *
+ * const store = await getVersionStore();
+ * const snapProvider = store.getSnapProvider();
+ *
+ * if (snapProvider.isAvailable('1.14.3')) {
+ *   const revision = snapProvider.getRevision('1.14.3', 'amd64');
+ *   console.log(`Revision: ${revision}`);
+ * }
+ *
+ * await store.cleanup();
+ * ```
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ChocolateyProvider = exports.HomebrewProvider = exports.GemfileProvider = exports.SnapProvider = exports.VersionProvider = exports.MnenvClient = exports.VersionDataStore = void 0;
+exports.getVersionStore = getVersionStore;
+var version_data_store_1 = __nccwpck_require__(7202);
+Object.defineProperty(exports, "VersionDataStore", ({ enumerable: true, get: function () { return version_data_store_1.VersionDataStore; } }));
+var mnenv_client_1 = __nccwpck_require__(2801);
+Object.defineProperty(exports, "MnenvClient", ({ enumerable: true, get: function () { return mnenv_client_1.MnenvClient; } }));
+// Providers
+var version_provider_1 = __nccwpck_require__(4246);
+Object.defineProperty(exports, "VersionProvider", ({ enumerable: true, get: function () { return version_provider_1.VersionProvider; } }));
+var snap_provider_1 = __nccwpck_require__(2956);
+Object.defineProperty(exports, "SnapProvider", ({ enumerable: true, get: function () { return snap_provider_1.SnapProvider; } }));
+var gemfile_provider_1 = __nccwpck_require__(1413);
+Object.defineProperty(exports, "GemfileProvider", ({ enumerable: true, get: function () { return gemfile_provider_1.GemfileProvider; } }));
+var homebrew_provider_1 = __nccwpck_require__(5205);
+Object.defineProperty(exports, "HomebrewProvider", ({ enumerable: true, get: function () { return homebrew_provider_1.HomebrewProvider; } }));
+var chocolatey_provider_1 = __nccwpck_require__(3839);
+Object.defineProperty(exports, "ChocolateyProvider", ({ enumerable: true, get: function () { return chocolatey_provider_1.ChocolateyProvider; } }));
+// Types
+__exportStar(__nccwpck_require__(2426), exports);
+__exportStar(__nccwpck_require__(8784), exports);
+__exportStar(__nccwpck_require__(5063), exports);
+// Convenience function
+const version_data_store_2 = __nccwpck_require__(7202);
+/**
+ * Get the singleton VersionDataStore instance.
+ * This is the main entry point for version data access.
+ * Returns null if initialization fails (mnenv CLI not available).
+ */
+async function getVersionStore() {
+    return version_data_store_2.VersionDataStore.getInstance();
+}
+
+
+/***/ }),
+
+/***/ 3839:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ChocolateyProvider = void 0;
+const version_provider_1 = __nccwpck_require__(4246);
+/**
+ * Provides Chocolatey version information with package name and pre-release flags.
+ */
+class ChocolateyProvider extends version_provider_1.VersionProvider {
+    platform = 'chocolatey';
+    constructor(mnenvData) {
+        const versions = transformVersions(mnenvData.chocolatey.versions);
+        const data = {
+            count: mnenvData.chocolatey.count,
+            latest: mnenvData.chocolatey.latest,
+            versions
+        };
+        super(data);
+    }
+    /**
+     * Get Chocolatey package name for a version.
+     */
+    getPackageName(version) {
+        return this.getVersion(version)?.packageName;
+    }
+    /**
+     * Check if version is a pre-release.
+     */
+    isPreRelease(version) {
+        return this.getVersion(version)?.isPreRelease ?? false;
+    }
+}
+exports.ChocolateyProvider = ChocolateyProvider;
+function transformVersions(mnenvVersions) {
+    return mnenvVersions.map(v => ({
+        version: v.version,
+        packageName: v.package_name,
+        isPreRelease: v.is_pre_release,
+        publishedAt: v.published_at ? new Date(v.published_at) : null,
+        parsedAt: v.parsed_at ? new Date(v.parsed_at) : null,
+        displayName: v.display_name
+    }));
+}
+
+
+/***/ }),
+
+/***/ 1413:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.GemfileProvider = void 0;
+const version_provider_1 = __nccwpck_require__(4246);
+/**
+ * Provides Gemfile version information for Docker-based installations.
+ */
+class GemfileProvider extends version_provider_1.VersionProvider {
+    platform = 'gemfile';
+    constructor(mnenvData) {
+        const versions = transformVersions(mnenvData.gemfile.versions);
+        const data = {
+            count: mnenvData.gemfile.count,
+            latest: mnenvData.gemfile.latest,
+            versions
+        };
+        super(data);
+    }
+    /**
+     * Check if Gemfile exists locally for a version.
+     */
+    hasGemfile(version) {
+        return this.getVersion(version)?.gemfileExists ?? false;
+    }
+}
+exports.GemfileProvider = GemfileProvider;
+function transformVersions(mnenvVersions) {
+    return mnenvVersions.map(v => ({
+        version: v.version,
+        gemfileExists: v.gemfile_exists,
+        publishedAt: v.published_at ? new Date(v.published_at) : null,
+        parsedAt: v.parsed_at ? new Date(v.parsed_at) : null,
+        displayName: v.display_name
+    }));
+}
+
+
+/***/ }),
+
+/***/ 5205:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.HomebrewProvider = void 0;
+const version_provider_1 = __nccwpck_require__(4246);
+/**
+ * Provides Homebrew version information with git tag and commit details.
+ */
+class HomebrewProvider extends version_provider_1.VersionProvider {
+    platform = 'homebrew';
+    constructor(mnenvData) {
+        const versions = transformVersions(mnenvData.homebrew.versions);
+        const data = {
+            count: mnenvData.homebrew.count,
+            latest: mnenvData.homebrew.latest,
+            versions
+        };
+        super(data);
+    }
+    /**
+     * Get git tag name for a version.
+     */
+    getTagName(version) {
+        return this.getVersion(version)?.tagName;
+    }
+    /**
+     * Get commit SHA for a version.
+     */
+    getCommitSha(version) {
+        return this.getVersion(version)?.commitSha;
+    }
+}
+exports.HomebrewProvider = HomebrewProvider;
+function transformVersions(mnenvVersions) {
+    return mnenvVersions.map(v => ({
+        version: v.version,
+        tagName: v.tag_name,
+        commitSha: v.commit_sha,
+        publishedAt: v.published_at ? new Date(v.published_at) : null,
+        parsedAt: v.parsed_at ? new Date(v.parsed_at) : null,
+        displayName: v.display_name
+    }));
+}
+
+
+/***/ }),
+
+/***/ 2956:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SnapProvider = void 0;
+const version_provider_1 = __nccwpck_require__(4246);
+/**
+ * Provides snap version information with architecture and channel support.
+ */
+class SnapProvider extends version_provider_1.VersionProvider {
+    platform = 'snap';
+    byVersion;
+    byChannel;
+    constructor(mnenvData) {
+        const versions = transformSnapVersions(mnenvData.snap.versions);
+        const data = {
+            count: mnenvData.snap.count,
+            latest: mnenvData.snap.latest,
+            versions
+        };
+        super(data);
+        this.byVersion = buildVersionMap(versions);
+        this.byChannel = buildChannelMap(versions);
+    }
+    /**
+     * Get snap revision for specific version and architecture.
+     */
+    getRevision(version, arch = 'amd64') {
+        return this.byVersion.get(version)?.get(arch)?.revision;
+    }
+    /**
+     * Get snap channel for specific version and architecture.
+     */
+    getChannel(version, arch = 'amd64') {
+        return this.byVersion.get(version)?.get(arch)?.channel;
+    }
+    /**
+     * Get latest version for a channel.
+     */
+    getLatestForChannel(channel) {
+        return this.byChannel.get(channel);
+    }
+    /**
+     * Get all architectures available for a version.
+     */
+    getArchitectures(version) {
+        const archMap = this.byVersion.get(version);
+        return archMap ? Array.from(archMap.keys()) : [];
+    }
+}
+exports.SnapProvider = SnapProvider;
+// Helper functions
+function transformSnapVersions(mnenvVersions) {
+    return mnenvVersions.map(v => ({
+        version: v.version,
+        revision: v.revision,
+        channel: v.channel,
+        architecture: (v.arch || 'amd64'),
+        publishedAt: v.published_at ? new Date(v.published_at) : null,
+        parsedAt: v.parsed_at ? new Date(v.parsed_at) : null,
+        displayName: v.display_name
+    }));
+}
+function buildVersionMap(versions) {
+    const map = new Map();
+    for (const v of versions) {
+        if (!map.has(v.version)) {
+            map.set(v.version, new Map());
+        }
+        map.get(v.version).set(v.architecture, v);
+    }
+    return map;
+}
+function buildChannelMap(versions) {
+    const map = new Map();
+    for (const v of versions) {
+        const current = map.get(v.channel) || '';
+        if (v.version > current) {
+            map.set(v.channel, v.version);
+        }
+    }
+    return map;
+}
+
+
+/***/ }),
+
+/***/ 4246:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VersionProvider = void 0;
+/**
+ * Abstract base class for version providers.
+ * Implements common functionality and defines the provider interface.
+ *
+ * @abstract Subclasses must implement getVersionsInternal()
+ */
+class VersionProvider {
+    data;
+    constructor(data) {
+        this.data = Object.freeze({ ...data, versions: [...data.versions] });
+    }
+    /** Get all version data (immutable) */
+    getVersions() {
+        return this.data.versions;
+    }
+    /** Get specific version info */
+    getVersion(version) {
+        return this.data.versions.find(v => v.version === version);
+    }
+    /** Get latest version number */
+    getLatest() {
+        return this.data.latest;
+    }
+    /** Check if version is available */
+    isAvailable(version) {
+        return this.data.versions.some(v => v.version === version);
+    }
+    /** Get available version numbers */
+    getAvailableVersions() {
+        return this.data.versions.map(v => v.version);
+    }
+}
+exports.VersionProvider = VersionProvider;
+
+
+/***/ }),
+
+/***/ 7202:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VersionDataStore = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+const mnenv_client_1 = __nccwpck_require__(2801);
+const snap_provider_1 = __nccwpck_require__(2956);
+const gemfile_provider_1 = __nccwpck_require__(1413);
+const homebrew_provider_1 = __nccwpck_require__(5205);
+const chocolatey_provider_1 = __nccwpck_require__(3839);
+/**
+ * VersionDataStore manages version data for all platforms.
+ *
+ * Responsibilities:
+ * - Initialize MnenvClient and fetch data
+ * - Create and cache platform-specific providers
+ * - Provide typed access to each platform's provider
+ * - Gracefully degrade when mnenv is unavailable
+ *
+ * @sealed This class uses a singleton pattern and should not be extended.
+ */
+class VersionDataStore {
+    static instance = null;
+    client;
+    providers;
+    isInitialized = false;
+    initializationFailed = false;
+    constructor() {
+        this.client = new mnenv_client_1.MnenvClient();
+        this.providers = new Map();
+    }
+    /**
+     * Get the singleton instance.
+     * Returns null if initialization fails.
+     */
+    static async getInstance() {
+        if (!VersionDataStore.instance) {
+            VersionDataStore.instance = new VersionDataStore();
+            const success = await VersionDataStore.instance.initialize();
+            if (!success) {
+                VersionDataStore.instance = null;
+                return null;
+            }
+        }
+        return VersionDataStore.instance;
+    }
+    /**
+     * Initialize the store by fetching data from mnenv.
+     * Returns true if successful, false otherwise.
+     */
+    async initialize() {
+        if (this.isInitialized) {
+            return true;
+        }
+        if (this.initializationFailed) {
+            core.warning('VersionDataStore previously failed initialization');
+            return false;
+        }
+        core.info('Initializing VersionDataStore...');
+        const initialized = await this.client.initialize();
+        if (!initialized) {
+            this.initializationFailed = true;
+            core.warning('Failed to initialize MnenvClient, version data will not be available');
+            return false;
+        }
+        const mnenvData = await this.client.fetchAllVersions();
+        if (!mnenvData) {
+            this.initializationFailed = true;
+            core.warning('Failed to fetch versions from mnenv, version data will not be available');
+            return false;
+        }
+        // Create providers for each platform
+        this.providers.set('snap', new snap_provider_1.SnapProvider(mnenvData));
+        this.providers.set('gemfile', new gemfile_provider_1.GemfileProvider(mnenvData));
+        this.providers.set('homebrew', new homebrew_provider_1.HomebrewProvider(mnenvData));
+        this.providers.set('chocolatey', new chocolatey_provider_1.ChocolateyProvider(mnenvData));
+        this.isInitialized = true;
+        core.info('VersionDataStore initialized successfully');
+        return true;
+    }
+    /**
+     * Get provider for a specific platform.
+     * @throws Error if store is not initialized
+     */
+    getProvider(platform) {
+        this.ensureInitialized();
+        const provider = this.providers.get(platform);
+        if (!provider) {
+            throw new Error(`Unknown platform: ${platform}`);
+        }
+        return provider;
+    }
+    /**
+     * Get snap provider (typed).
+     * @throws Error if store is not initialized
+     */
+    getSnapProvider() {
+        return this.getProvider('snap');
+    }
+    /**
+     * Get gemfile provider (typed).
+     * @throws Error if store is not initialized
+     */
+    getGemfileProvider() {
+        return this.getProvider('gemfile');
+    }
+    /**
+     * Get homebrew provider (typed).
+     * @throws Error if store is not initialized
+     */
+    getHomebrewProvider() {
+        return this.getProvider('homebrew');
+    }
+    /**
+     * Get chocolatey provider (typed).
+     * @throws Error if store is not initialized
+     */
+    getChocolateyProvider() {
+        return this.getProvider('chocolatey');
+    }
+    /**
+     * Clean up resources.
+     */
+    async cleanup() {
+        await this.client.cleanup();
+    }
+    ensureInitialized() {
+        if (!this.isInitialized) {
+            throw new Error('VersionDataStore not initialized');
+        }
+    }
+}
+exports.VersionDataStore = VersionDataStore;
+
+
+/***/ }),
+
+/***/ 5063:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+
+/***/ 2426:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+
+
+/***/ }),
+
+/***/ 8784:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
 
 
 /***/ }),
