@@ -8,6 +8,15 @@ export enum Platform {
 }
 
 /**
+ * Installation method enumeration
+ */
+export enum InstallationMethod {
+  Auto = 'auto',
+  Native = 'native',
+  Gem = 'gem'
+}
+
+/**
  * Detect the current platform
  */
 export function detectPlatform(): Platform {

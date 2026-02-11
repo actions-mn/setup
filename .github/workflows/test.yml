@@ -5,6 +5,13 @@ on:
     branches: [ main ]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     name: local tests
@@ -38,27 +45,200 @@ jobs:
 
     - run: metanorma help
 
-  test-local-specific-version:
-    name: local test ${{ matrix.os }} metanorma@${{ matrix.version }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest] # ubuntu-latest,
-        version: ['1.7.1']
+  # Native package manager tests - split into separate jobs per platform
+  # Each platform tests its latest available version from platform-specific JSON
+  native-package-windows:
+    name: Native Package Windows (Chocolatey)
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@v6
 
+    # Read latest version from platform-specific JSON
+    - name: Read Windows version
+      id: windows-version
+      run: |
+        $version = (Get-Content platform-windows-native-versions.json | ConvertFrom-Json).latest
+        Write-Output "version=$version" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+
     - uses: ./
       with:
-        version: ${{ matrix.version }}
+        version: ${{ steps.windows-version.outputs.version }}
 
     - run: |
-        if metanorma version | grep -q ${{ matrix.version }}; then
-          echo "correct metanorma version installed"
+        metanorma --version
+        echo "✓ Metanorma installed via Chocolatey (version ${{ steps.windows-version.outputs.version }})"
+      shell: bash
+
+  native-package-macos:
+    name: Native Package macOS (Homebrew)
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    # Read latest version from platform-specific JSON
+    - name: Read macOS version
+      id: macos-version
+      run: |
+        VERSION=$(jq -r '.latest' platform-macos-native-versions.json)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - uses: ./
+      with:
+        version: ${{ steps.macos-version.outputs.version }}
+
+    - run: |
+        metanorma --version
+        echo "✓ Metanorma installed via Homebrew (version ${{ steps.macos-version.outputs.version }})"
+
+  native-package-ubuntu:
+    name: Native Package Ubuntu (Snap)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    # Read specific version from platform-snap-native-versions.json
+    # to test revision-based installation
+    - name: Read Snap version for revision test
+      id: snap-version
+      run: |
+        # Use a known version with available revision (1.14.3 has revision 287)
+        VERSION=$(jq -r '.revisions["1.14.3"].amd64.version' platform-snap-native-versions.json)
+        REVISION=$(jq -r '.revisions["1.14.3"].amd64.revision' platform-snap-native-versions.json)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "revision=$REVISION" >> $GITHUB_OUTPUT
+
+    - uses: ./
+      with:
+        installation-method: 'native'
+        version: ${{ steps.snap-version.outputs.version }}
+
+    - run: |
+        metanorma --version
+        echo "✓ Metanorma installed via Snap (version ${{ steps.snap-version.outputs.version }}, revision ${{ steps.snap-version.outputs.revision }})"
+
+  # Gem-based installation tests
+  docker-gem-ubuntu:
+    name: Docker Gem Ubuntu
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:22.04
+    steps:
+    - uses: actions/checkout@v6
+
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        # Note: bundler-cache: true removed - our action handles bundle install
+        # after installing system dependencies
+
+    - uses: ./
+      with:
+        installation-method: 'gem'
+
+    - run: bundle exec metanorma --version
+
+  docker-gem-alpine:
+    name: Docker Gem Alpine
+    runs-on: ubuntu-latest
+    container:
+      image: ruby:alpine
+    steps:
+    - uses: actions/checkout@v6
+
+    # ruby:alpine already includes Ruby and Bundler
+    - uses: ./
+      with:
+        installation-method: 'gem'
+
+    - run: bundle exec metanorma --version
+
+  native-gem-ubuntu:
+    name: Native Gem Ubuntu
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        bundler-cache: true
+
+    - uses: ./
+      with:
+        installation-method: 'gem'
+
+    - run: bundle exec metanorma --version
+
+  native-gem-macos:
+    name: Native Gem macOS
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        bundler-cache: true
+
+    - uses: ./
+      with:
+        installation-method: 'gem'
+
+    - run: bundle exec metanorma --version
+
+  # Gem version behavior tests
+  gem-respects-gemfile-lock:
+    name: Gem Respects Gemfile.lock
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        # Note: bundler-cache: true removed - test creates its own Gemfile
+
+    # Create a Gemfile with specific version (1.13.0 doesn't have fontist LoadError issue)
+    - run: |
+        echo 'source "https://rubygems.org"' > Gemfile
+        echo 'gem "metanorma-cli", "1.13.0"' >> Gemfile
+
+    - uses: ./
+      with:
+        installation-method: 'gem'
+        # No version specified - should respect existing Gemfile
+
+    - run: |
+        if bundle exec metanorma --version | grep -q "1.13.0"; then
+          echo "correct metanorma version installed (respects Gemfile)"
         else
-          echo "wrong metanorma version installed, check env below:"
-          env
+          echo "wrong metanorma version installed"
+          bundle exec metanorma --version
           exit 1
         fi
-      shell: bash
+
+  gem-specific-version:
+    name: Gem Specific Version
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        # Note: bundler-cache: true removed - our action handles bundle install
+
+    - uses: ./
+      with:
+        installation-method: 'gem'
+        version: '1.13.0'
+
+    - run: |
+        if bundle exec metanorma --version | grep -q "1.13.0"; then
+          echo "correct metanorma version installed"
+        else
+          echo "wrong metanorma version installed"
+          bundle exec metanorma --version
+          exit 1
+        fi

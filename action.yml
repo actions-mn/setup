@@ -2,11 +2,11 @@ name: 'Setup Metanorma'
 description: 'Set up metanorma toolchain and add the command-line tools to the PATH'
 author: 'Metanorma'
 branding:
-  icon: 'book-open'  
+  icon: 'book-open'
   color: 'blue'
 inputs:
   version:
-    description: 'Version of a metanorma-cli ruby gem.'
+    description: 'Version of metanorma-cli gem to install. For gem installations: empty (default) respects Gemfile.lock, "latest" runs bundle update, or specific version like "1.7.1" pins that version'
     default: ''
   snap-channel:
     description: 'Snapcraft channel, more details https://snapcraft.io/docs/channels'
@@ -14,11 +14,35 @@ inputs:
   choco-prerelase:
     description: Allow prerelases for chocolatey packages
     default: ''
+  installation-method:
+    description: |
+      Installation method: 'auto' (default), 'native', 'gem'
+      - auto: Auto-detect based on environment
+      - native: Force native package manager (brew/snap/choco)
+      - gem: Install via bundle (requires Ruby setup first)
+    default: 'auto'
+  gemfile:
+    description: 'Path to custom Gemfile for gem-based installation'
+    default: ''
+  bundler-version:
+    description: 'Bundler version for gem-based installation'
+    default: '2.6.5'
+  fontist-update:
+    description: 'Update fontist formulas after gem installation (default: true)'
+    default: 'true'
+  bundle-update:
+    description: 'Update dependencies while keeping metanorma-cli version pinned (gem installation only)'
+    default: 'false'
+  use-prebuilt-locks:
+    description: 'Use pre-tested Gemfile.lock files from metanorma-gemfile-locks repository (default: true)'
+    default: 'true'
 outputs:
   version:
     description: 'The installed Metanorma version'
   platform:
     description: 'The platform Metanorma was installed on'
+  installation-method:
+    description: 'The installation method used'
 runs:
   using: 'node20'
   main: 'dist/index.js'

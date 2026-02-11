@@ -3,6 +3,11 @@ import * as exec from '@actions/exec';
 import * as tc from '@actions/tool-cache';
 import * as fs from 'fs';
 import fetch from 'node-fetch';
+import {
+  validateVersion,
+  getLatestVersion,
+  isVersionAvailable
+} from './version-validator';
 
 const IS_WINDOWS = process.platform === 'win32';
 const IS_MACOSX = process.platform === 'darwin';
@@ -31,6 +36,21 @@ export async function installMetanormaVersion(
   snap_channel: string,
   choco_prerelase: boolean
 ) {
+  // Determine the installation method based on platform
+  let installMethod: 'snap' | 'chocolatey' | 'homebrew' | null = null;
+  if (IS_MACOSX) {
+    installMethod = 'homebrew';
+  } else if (IS_LINUX) {
+    installMethod = 'snap';
+  } else if (IS_WINDOWS) {
+    installMethod = 'chocolatey';
+  }
+
+  // Validate version availability if we have versions.json
+  if (installMethod && version && version !== 'latest') {
+    validateVersion(version, installMethod);
+  }
+
   let cmds: string[] = [];
   let options: exec.ExecOptions = {};
   let ignoreFailure: boolean = false;
