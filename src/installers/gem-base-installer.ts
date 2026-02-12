@@ -160,7 +160,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
    * 2. use-prebuilt-locks: false → Respect existing workspace Gemfile.lock
    * 3. User has workspace Gemfile → Use existing Gemfile
    * 4. User has workspace Gemfile.lock AND version matches → Use existing lock
-   * 5. Pre-built lock available from metanorma-gemfile-locks → Use with warning
+   * 5. Pre-built lock available from metanorma/versions → Use with warning
    * 6. Fallback: Dynamic Gemfile creation + bundle install
    */
   protected async setupGemfile(settings: IMetanormaSettings): Promise<string> {
@@ -208,7 +208,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
       }
     }
 
-    // 5. Try pre-built lock from metanorma-gemfile-locks
+    // 5. Try pre-built lock from metanorma/versions
     if (settings.version && settings.version !== 'latest') {
       const isAvailable = await this.fetcher.isVersionAvailable(settings.version);
       if (isAvailable) {
@@ -239,7 +239,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
   }
 
   /**
-   * Use pre-built Gemfile.lock from metanorma-gemfile-locks repository
+   * Use pre-built Gemfile.lock from metanorma/versions repository
    */
   private async usePrebuiltGemfileLock(
     version: string,
@@ -270,7 +270,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
     if (existingLock) {
       this.terminal.warnGemfileLockReplacement(
         existingLock,
-        `metanorma-gemfile-locks/v${version}/Gemfile.lock`
+        `v${version}/Gemfile.lock.archived (metanorma/versions)`
       );
     } else {
       this.terminal.infoPrebuiltLockUsed(version);

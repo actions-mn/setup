@@ -64,7 +64,7 @@ export interface IMetanormaSettings {
   bundleUpdate?: boolean;
 
   /**
-   * Whether to use pre-built Gemfile.lock files from metanorma-gemfile-locks
+   * Whether to use pre-built Gemfile.lock files from metanorma/versions
    */
   usePrebuiltLocks?: boolean;
 }

@@ -153,7 +153,7 @@ describe('Terminal', () => {
 
       terminal.warnGemfileLockReplacement(
         '/workspace/Gemfile.lock',
-        'metanorma-gemfile-locks/v1.14.3/Gemfile.lock'
+        'v1.14.3/Gemfile.lock.archived (metanorma/versions)'
       );
 
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -163,7 +163,9 @@ describe('Terminal', () => {
         expect.stringContaining('/workspace/Gemfile.lock')
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('metanorma-gemfile-locks/v1.14.3/Gemfile.lock')
+        expect.stringContaining(
+          'v1.14.3/Gemfile.lock.archived (metanorma/versions)'
+        )
       );
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('use-prebuilt-locks: false')
@@ -179,7 +181,7 @@ describe('Terminal', () => {
 
       terminal.warnGemfileLockReplacement(
         '/path/to/Gemfile.lock',
-        'metanorma-gemfile-locks/v1.14.3/Gemfile.lock'
+        'v1.14.3/Gemfile.lock.archived (metanorma/versions)'
       );
 
       // Should have multiple lines (at least 10: box top, header, content lines, box bottom)
@@ -204,7 +206,7 @@ describe('Terminal', () => {
         expect.stringContaining('1.14.3')
       );
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('metanorma-gemfile-locks')
+        expect.stringContaining('metanorma/versions')
       );
 
       consoleSpy.mockRestore();
