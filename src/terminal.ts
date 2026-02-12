@@ -168,7 +168,7 @@ export class Terminal {
         AnsiColor.FgYellow
       ),
       this.colorize(
-        '│ from metanorma-gemfile-locks repository.                         │',
+        '│ from metanorma/versions repository.                              │',
         AnsiColor.FgYellow
       ),
       this.colorize(
@@ -242,7 +242,7 @@ export class Terminal {
         AnsiColor.FgGreen
       ),
       this.colorize(
-        '│ Using pre-tested Gemfile.lock from metanorma-gemfile-locks       │',
+        '│ Using pre-tested Gemfile.lock from metanorma/versions            │',
         AnsiColor.FgGreen
       ),
       this.colorize(

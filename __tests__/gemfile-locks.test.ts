@@ -10,23 +10,27 @@ describe('GemfileLocksFetcher', () => {
   });
 
   describe('parseYaml', () => {
-    it('should parse valid index.yaml', () => {
+    it('should parse valid versions.yaml', () => {
       const yamlContent = `
 metadata:
-  generated_at: '2025-01-15'
-  local_count: 5
-  remote_count: 10
-  latest_version: '1.14.4'
+  generated_at: '2026-02-10T11:30:18Z'
+  source: :gemfile
+  count: 124
+  latest_version: 1.14.4
 
 versions:
   - version: '1.14.4'
-    updated_at: '2025-01-15'
+    published_at: '2025-12-03T09:52:26Z'
+    parsed_at:
+    gemfile_exists: true
+    gemfile_path: data/gemfile/v1.14.4/Gemfile
+    gemfile_lock_path: data/gemfile/v1.14.4/Gemfile.lock.archived
   - version: '1.14.3'
-    updated_at: '2025-01-10'
-
-missing_versions:
-  - '1.0.0'
-  - '0.9.0'
+    published_at:
+    parsed_at:
+    gemfile_exists: false
+    gemfile_path:
+    gemfile_lock_path:
 `;
 
       // Access private method through type assertion for testing
@@ -34,15 +38,15 @@ missing_versions:
       const result = parseYaml(yamlContent) as GemfileLocksIndex;
 
       expect(result).not.toBeNull();
-      expect(result?.metadata.generated_at).toBe('2025-01-15');
-      expect(result?.metadata.local_count).toBe(5);
-      expect(result?.metadata.remote_count).toBe(10);
+      expect(result?.metadata.generated_at).toBe('2026-02-10T11:30:18Z');
+      expect(result?.metadata.source).toBe('gemfile');
+      expect(result?.metadata.count).toBe(124);
       expect(result?.metadata.latest_version).toBe('1.14.4');
       expect(result?.versions).toHaveLength(2);
       expect(result?.versions[0].version).toBe('1.14.4');
+      expect(result?.versions[0].gemfile_exists).toBe(true);
       expect(result?.versions[1].version).toBe('1.14.3');
-      expect(result?.missing_versions).toHaveLength(2);
-      expect(result?.missing_versions[0]).toBe('1.0.0');
+      expect(result?.versions[1].gemfile_exists).toBe(false);
     });
 
     it('should handle empty YAML', () => {
@@ -51,70 +55,50 @@ missing_versions:
 
       expect(result).not.toBeNull();
       expect(result?.versions).toHaveLength(0);
-      expect(result?.missing_versions).toHaveLength(0);
     });
 
     it('should handle YAML with comments', () => {
       const yamlContent = `
 # This is a comment
 metadata:
-  generated_at: '2025-01-15'
-  local_count: 3
+  generated_at: '2026-02-10T11:30:18Z'
+  source: :gemfile
+  count: 3
+  latest_version: '1.14.3'
 
 versions:
   - version: '1.14.3'
-    updated_at: '2025-01-10'
+    published_at:
+    parsed_at:
+    gemfile_exists: false
+    gemfile_path:
+    gemfile_lock_path:
 `;
 
       const parseYaml = (fetcher as any).parseYaml.bind(fetcher);
       const result = parseYaml(yamlContent) as GemfileLocksIndex;
 
       expect(result).not.toBeNull();
-      expect(result?.metadata.local_count).toBe(3);
+      expect(result?.metadata.count).toBe(3);
       expect(result?.versions).toHaveLength(1);
       expect(result?.versions[0].version).toBe('1.14.3');
     });
 
-    it('should handle YAML with missing_versions section', () => {
+    it('should handle version with gemfile_exists true', () => {
       const yamlContent = `
 metadata:
-  generated_at: '2025-01-15'
-  local_count: 0
-  remote_count: 0
+  generated_at: '2026-02-10T11:30:18Z'
+  source: :gemfile
+  count: 1
   latest_version: '1.14.3'
 
 versions:
   - version: '1.14.3'
-    updated_at: '2025-01-10'
-
-missing_versions:
-  - '1.0.0'
-  - '0.9.0'
-  - '0.8.0'
-`;
-
-      const parseYaml = (fetcher as any).parseYaml.bind(fetcher);
-      const result = parseYaml(yamlContent) as GemfileLocksIndex;
-
-      expect(result).not.toBeNull();
-      expect(result?.versions).toHaveLength(1);
-      expect(result?.missing_versions).toHaveLength(3);
-      expect(result?.missing_versions).toEqual(['1.0.0', '0.9.0', '0.8.0']);
-    });
-
-    it('should handle single version entry', () => {
-      const yamlContent = `
-metadata:
-  generated_at: '2025-01-15'
-  local_count: 1
-  remote_count: 1
-  latest_version: '1.14.3'
-
-versions:
-  - version: '1.14.3'
-    updated_at: '2025-01-10'
-
-missing_versions: []
+    published_at: '2025-01-10T00:00:00Z'
+    parsed_at: '2026-02-10T08:03:18Z'
+    gemfile_exists: true
+    gemfile_path: data/gemfile/v1.14.3/Gemfile
+    gemfile_lock_path: data/gemfile/v1.14.3/Gemfile.lock.archived
 `;
 
       const parseYaml = (fetcher as any).parseYaml.bind(fetcher);
@@ -123,22 +107,28 @@ missing_versions: []
       expect(result).not.toBeNull();
       expect(result?.versions).toHaveLength(1);
       expect(result?.versions[0].version).toBe('1.14.3');
-      expect(result?.versions[0].updated_at).toBe('2025-01-10');
+      expect(result?.versions[0].published_at).toBe('2025-01-10T00:00:00Z');
+      expect(result?.versions[0].gemfile_exists).toBe(true);
+      expect(result?.versions[0].gemfile_path).toBe(
+        'data/gemfile/v1.14.3/Gemfile'
+      );
     });
 
     it('should handle version without quotes', () => {
       const yamlContent = `
 metadata:
-  generated_at: '2025-01-15'
-  local_count: 1
-  remote_count: 1
+  generated_at: '2026-02-10T11:30:18Z'
+  source: :gemfile
+  count: 1
   latest_version: 1.14.3
 
 versions:
   - version: 1.14.3
-    updated_at: 2025-01-10
-
-missing_versions: []
+    published_at:
+    parsed_at:
+    gemfile_exists: false
+    gemfile_path:
+    gemfile_lock_path:
 `;
 
       const parseYaml = (fetcher as any).parseYaml.bind(fetcher);
@@ -163,12 +153,39 @@ missing_versions: []
       expect(isAvailable).toBe(false);
       fetchUrl.mockRestore();
     });
+
+    it('should return false when gemfile fetch fails', async () => {
+      // isVersionAvailable now tries to fetch the Gemfile file directly
+      const fetchUrl = vi
+        .spyOn(fetcher as any, 'fetchUrl')
+        .mockResolvedValue(null);
+
+      const isAvailable = await fetcher.isVersionAvailable('1.14.3');
+
+      expect(isAvailable).toBe(false);
+      fetchUrl.mockRestore();
+    });
+
+    it('should return true when gemfile fetch succeeds', async () => {
+      // isVersionAvailable tries to fetch the Gemfile file directly
+      const gemfileContent = `source "https://rubygems.org"
+gem "metanorma-cli", "= 1.14.3"
+`;
+      const fetchUrl = vi
+        .spyOn(fetcher as any, 'fetchUrl')
+        .mockResolvedValue(gemfileContent);
+
+      const isAvailable = await fetcher.isVersionAvailable('1.14.3');
+
+      expect(isAvailable).toBe(true);
+      fetchUrl.mockRestore();
+    });
   });
 
   describe('constructor', () => {
     it('should initialize with correct base URL', () => {
       expect((fetcher as any).baseUrl).toBe(
-        'https://raw.githubusercontent.com/metanorma/metanorma-gemfile-locks/main'
+        'https://raw.githubusercontent.com/metanorma/versions/main/data/gemfile'
       );
     });
 

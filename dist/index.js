@@ -261,14 +261,14 @@ const https = __importStar(__nccwpck_require__(5692));
 const http = __importStar(__nccwpck_require__(8611));
 const core = __importStar(__nccwpck_require__(7484));
 /**
- * Fetcher for pre-built Gemfile.lock files from metanorma-gemfile-locks repository
+ * Fetcher for pre-built Gemfile.lock files from metanorma/versions repository
  */
 class GemfileLocksFetcher {
-    baseUrl = 'https://raw.githubusercontent.com/metanorma/metanorma-gemfile-locks/main';
-    indexUrl = `${this.baseUrl}/index.yaml`;
+    baseUrl = 'https://raw.githubusercontent.com/metanorma/versions/main/data/gemfile';
+    indexUrl = `${this.baseUrl}/versions.yaml`;
     indexCache = null;
     /**
-     * Simple YAML parser for the index file
+     * Simple YAML parser for the versions.yaml file
      * Handles basic YAML structure without external dependencies
      */
     parseYaml(text) {
@@ -277,12 +277,11 @@ class GemfileLocksFetcher {
             const result = {
                 metadata: {
                     generated_at: '',
-                    local_count: 0,
-                    remote_count: 0,
+                    source: '',
+                    count: 0,
                     latest_version: ''
                 },
-                versions: [],
-                missing_versions: []
+                versions: []
             };
             let currentSection = null;
             let currentVersion = null;
@@ -301,24 +300,20 @@ class GemfileLocksFetcher {
                     currentSection = 'versions';
                     continue;
                 }
-                else if (trimmed === 'missing_versions:') {
-                    currentSection = 'missing_versions';
-                    continue;
-                }
                 // Parse key-value pairs based on current section
                 if (currentSection === 'metadata') {
-                    const match = trimmed.match(/^(\w+):\s*(.+)$/);
+                    const match = trimmed.match(/^(\w+):\s*(.*)$/);
                     if (match) {
                         const [, key, value] = match;
-                        const cleanValue = value.replace(/^['"]|['"]$/g, '');
+                        const cleanValue = value.replace(/^['"]|['"]$/g, '').trim();
                         if (key === 'generated_at') {
                             result.metadata.generated_at = cleanValue;
                         }
-                        else if (key === 'local_count') {
-                            result.metadata.local_count = parseInt(cleanValue, 10);
+                        else if (key === 'source') {
+                            result.metadata.source = cleanValue.replace(/^:/, '');
                         }
-                        else if (key === 'remote_count') {
-                            result.metadata.remote_count = parseInt(cleanValue, 10);
+                        else if (key === 'count') {
+                            result.metadata.count = parseInt(cleanValue, 10) || 0;
                         }
                         else if (key === 'latest_version') {
                             result.metadata.latest_version = cleanValue;
@@ -328,8 +323,6 @@ class GemfileLocksFetcher {
                 else if (currentSection === 'versions') {
                     // Match: - version: '1.14.4' or - version: "1.14.4" or - version: 1.14.4
                     const versionMatch = trimmed.match(/^-\s*version:\s*['"]?(\d+\.\d+\.\d+)['"]?$/);
-                    // Match: updated_at: '2025-01-15' (may have leading spaces due to YAML indentation)
-                    const updatedMatch = trimmed.match(/updated_at:\s*['"]?([^'"]+)['"]?$/);
                     if (versionMatch) {
                         // If we have a pending version, add it to the array
                         if (currentVersion) {
@@ -338,18 +331,39 @@ class GemfileLocksFetcher {
                         // Start a new version entry
                         currentVersion = {
                             version: versionMatch[1],
-                            updated_at: ''
+                            published_at: null,
+                            parsed_at: null,
+                            gemfile_exists: false,
+                            gemfile_path: null,
+                            gemfile_lock_path: null
                         };
                     }
-                    else if (updatedMatch && currentVersion) {
-                        // Update the current version with the updated_at value
-                        currentVersion.updated_at = updatedMatch[1];
-                    }
-                }
-                else if (currentSection === 'missing_versions') {
-                    const versionMatch = trimmed.match(/^-\s*['"]?(\d+\.\d+\.\d+)['"]?$/);
-                    if (versionMatch) {
-                        result.missing_versions.push(versionMatch[1]);
+                    else if (currentVersion) {
+                        // Parse other fields for the current version
+                        const publishedMatch = trimmed.match(/^published_at:\s*(.*)$/);
+                        const parsedMatch = trimmed.match(/^parsed_at:\s*(.*)$/);
+                        const existsMatch = trimmed.match(/^gemfile_exists:\s*(\w+)$/);
+                        const pathMatch = trimmed.match(/^gemfile_path:\s*(.*)$/);
+                        const lockPathMatch = trimmed.match(/^gemfile_lock_path:\s*(.*)$/);
+                        if (publishedMatch) {
+                            const val = publishedMatch[1].trim().replace(/^['"]|['"]$/g, '');
+                            currentVersion.published_at = val || null;
+                        }
+                        else if (parsedMatch) {
+                            const val = parsedMatch[1].trim().replace(/^['"]|['"]$/g, '');
+                            currentVersion.parsed_at = val || null;
+                        }
+                        else if (existsMatch) {
+                            currentVersion.gemfile_exists = existsMatch[1] === 'true';
+                        }
+                        else if (pathMatch) {
+                            const val = pathMatch[1].trim().replace(/^['"]|['"]$/g, '');
+                            currentVersion.gemfile_path = val || null;
+                        }
+                        else if (lockPathMatch) {
+                            const val = lockPathMatch[1].trim().replace(/^['"]|['"]$/g, '');
+                            currentVersion.gemfile_lock_path = val || null;
+                        }
                     }
                 }
             }
@@ -396,7 +410,7 @@ class GemfileLocksFetcher {
         });
     }
     /**
-     * Fetch the index.yaml to check version availability
+     * Fetch the versions.yaml to check version availability
      * Results are cached for the lifetime of the fetcher instance
      */
     async fetchIndex() {
@@ -413,13 +427,13 @@ class GemfileLocksFetcher {
     }
     /**
      * Check if a specific version has a pre-built lock file
+     * Note: We check by trying to fetch the file directly since the YAML
+     * metadata may not be updated. The files exist at data/gemfile/v{version}/
      */
     async isVersionAvailable(version) {
-        const index = await this.fetchIndex();
-        if (!index) {
-            return false;
-        }
-        const isAvailable = index.versions.some(v => v.version === version);
+        // Try to fetch the Gemfile directly to verify availability
+        const gemfile = await this.fetchGemfile(version);
+        const isAvailable = gemfile !== null;
         core.debug(`Version ${version} available in pre-built locks: ${isAvailable}`);
         return isAvailable;
     }
@@ -427,7 +441,7 @@ class GemfileLocksFetcher {
      * Download Gemfile.lock content for a specific version
      */
     async fetchGemfileLock(version) {
-        const url = `${this.baseUrl}/v${version}/Gemfile.lock`;
+        const url = `${this.baseUrl}/v${version}/Gemfile.lock.archived`;
         core.debug(`Fetching Gemfile.lock for version ${version} from ${url}`);
         return this.fetchUrl(url);
     }
@@ -461,6 +475,427 @@ class GemfileLocksFetcher {
     }
 }
 exports.GemfileLocksFetcher = GemfileLocksFetcher;
+
+
+/***/ }),
+
+/***/ 289:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.IdempotencyManager = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+const crypto = __importStar(__nccwpck_require__(6982));
+const fs = __importStar(__nccwpck_require__(9896));
+const path = __importStar(__nccwpck_require__(6928));
+const exec = __importStar(__nccwpck_require__(5236));
+const types_1 = __nccwpck_require__(9415);
+/**
+ * Manages idempotency for the setup-metanorma action.
+ *
+ * Responsibilities:
+ * - Detect if Metanorma is already installed with matching configuration
+ * - Compare current configuration with previous installation
+ * - Determine whether to skip or reinstall
+ * - Save/load installation state to/from filesystem
+ *
+ * @sealed This class uses a singleton-like pattern and should not be extended.
+ */
+class IdempotencyManager {
+    config;
+    stateFilePath;
+    /**
+     * Create a new IdempotencyManager instance.
+     *
+     * @param config - Optional configuration to override defaults
+     */
+    constructor(config) {
+        this.config = { ...types_1.DEFAULT_IDEMPOTENCY_CONFIG, ...config };
+        const workspace = process.env['GITHUB_WORKSPACE'] || process.cwd();
+        this.stateFilePath = path.join(workspace, this.config.stateFileName);
+        core.debug(`Idempotency state file: ${this.stateFilePath}`);
+    }
+    /**
+     * Check if installation should be skipped based on existing state.
+     * This is the main entry point for idempotency checking.
+     *
+     * @param settings - The current installation settings
+     * @returns IdempotencyResult indicating whether to skip installation
+     */
+    async checkAndSkipIfAlreadyInstalled(settings) {
+        // If idempotency is disabled, proceed with installation
+        if (!this.config.enabled) {
+            return this.createResult(false, 'not_installed', 'Idempotency checking is disabled');
+        }
+        // Load previous state
+        const previousState = await this.loadInstallationState();
+        // No previous state → proceed with installation
+        if (!previousState) {
+            return this.createResult(false, 'not_installed', 'No previous installation state found');
+        }
+        // Check if we're in the same environment
+        const envCheck = this.checkEnvironmentMatch(settings, previousState);
+        if (!envCheck.matches) {
+            return this.createResult(false, 'configuration_changed', envCheck.reason, previousState);
+        }
+        // Calculate checksum of current configuration
+        const currentChecksum = this.calculateChecksum(settings);
+        // Check if configuration changed
+        if (currentChecksum !== previousState.checksum) {
+            core.info(`Configuration changed since last installation`);
+            core.debug(`Previous checksum: ${previousState.checksum}`);
+            core.debug(`Current checksum: ${currentChecksum}`);
+            if (this.config.reinstallOnConfigChange) {
+                return this.createResult(false, 'configuration_changed', 'Configuration changed, will reinstall', previousState);
+            }
+            else {
+                core.warning('Configuration changed but reinstallOnConfigChange is disabled');
+            }
+        }
+        // Check if metanorma is actually available in PATH
+        const isAvailable = await this.checkMetanormaAvailable();
+        if (!isAvailable) {
+            core.info('Metanorma not found in PATH despite state file existing');
+            return this.createResult(false, 'not_installed', 'Metanorma not found, will reinstall', previousState);
+        }
+        // Get installed version
+        const installedVersion = await this.getInstalledVersion();
+        // All checks pass → skip installation
+        const details = installedVersion
+            ? `Metanorma ${installedVersion} is already installed (installed at ${previousState.installedAt})`
+            : `Metanorma is already installed`;
+        return this.createResult(true, 'already_installed', details, previousState, installedVersion);
+    }
+    /**
+     * Save the current installation state after successful installation.
+     *
+     * @param settings - The installation settings used
+     * @param installedVersion - The actual version installed (null if undetectable)
+     */
+    async saveInstallationState(settings, installedVersion) {
+        try {
+            const state = {
+                platform: settings.platform,
+                installationMethod: settings.installationMethod,
+                version: settings.version,
+                installPath: settings.installPath,
+                installedAt: this.config.now(),
+                metanormaVersion: installedVersion,
+                checksum: this.calculateChecksum(settings)
+            };
+            const content = JSON.stringify(state, null, 2);
+            await fs.promises.writeFile(this.stateFilePath, content, 'utf-8');
+            core.info(`Saved installation state to ${this.stateFilePath}`);
+            core.debug(`State: ${content}`);
+        }
+        catch (error) {
+            core.warning(`Failed to save installation state: ${error}`);
+        }
+    }
+    /**
+     * Load the previous installation state from filesystem.
+     *
+     * @returns InstallationState if found and valid, null otherwise
+     */
+    async loadInstallationState() {
+        try {
+            // Check if state file exists
+            if (!fs.existsSync(this.stateFilePath)) {
+                core.debug(`State file does not exist: ${this.stateFilePath}`);
+                return null;
+            }
+            // Read and parse state file
+            const content = await fs.promises.readFile(this.stateFilePath, 'utf-8');
+            const state = JSON.parse(content);
+            // Validate required fields
+            const validation = this.validateState(state);
+            if (!validation.valid) {
+                core.warning(`Invalid state file: ${validation.reason}`);
+                return null;
+            }
+            core.debug(`Loaded installation state from ${this.stateFilePath}`);
+            return state;
+        }
+        catch (error) {
+            if (error instanceof SyntaxError) {
+                core.warning(`Corrupt state file: ${error}`);
+            }
+            else {
+                core.warning(`Failed to load installation state: ${error}`);
+            }
+            return null;
+        }
+    }
+    /**
+     * Clear the installation state (for cleanup or testing).
+     */
+    async clearState() {
+        try {
+            if (fs.existsSync(this.stateFilePath)) {
+                await fs.promises.unlink(this.stateFilePath);
+                core.info('Cleared installation state');
+            }
+        }
+        catch (error) {
+            core.warning(`Failed to clear state: ${error}`);
+        }
+    }
+    /**
+     * Get the state file path (for testing or debugging).
+     */
+    getStateFilePath() {
+        return this.stateFilePath;
+    }
+    /**
+     * Check if the current environment matches the saved state.
+     */
+    checkEnvironmentMatch(settings, state) {
+        // Check platform
+        if (state.platform !== settings.platform) {
+            return {
+                matches: false,
+                reason: `Platform changed: ${state.platform} → ${settings.platform}`
+            };
+        }
+        // Check installation method
+        if (state.installationMethod !== settings.installationMethod) {
+            return {
+                matches: false,
+                reason: `Installation method changed: ${state.installationMethod} → ${settings.installationMethod}`
+            };
+        }
+        // Check if install paths are related (one contains the other)
+        // This handles cases where GITHUB_WORKSPACE might vary slightly
+        const pathsRelated = settings.installPath.startsWith(state.installPath) ||
+            state.installPath.startsWith(settings.installPath);
+        if (!pathsRelated) {
+            return {
+                matches: false,
+                reason: `Install path changed: ${state.installPath} → ${settings.installPath}`
+            };
+        }
+        return { matches: true, reason: '' };
+    }
+    /**
+     * Calculate a checksum of the relevant settings for change detection.
+     */
+    calculateChecksum(settings) {
+        const checksumData = {
+            platform: settings.platform,
+            installationMethod: settings.installationMethod,
+            version: settings.version || '',
+            snapChannel: settings.snapChannel,
+            chocoPrerelease: settings.chocoPrerelease,
+            gemfile: settings.gemfile,
+            bundlerVersion: settings.bundlerVersion || '2.6.5'
+        };
+        // Create deterministic string and hash it
+        const sortedKeys = Object.keys(checksumData).sort();
+        const sortedData = {};
+        for (const key of sortedKeys) {
+            sortedData[key] = checksumData[key];
+        }
+        const content = JSON.stringify(sortedData);
+        return crypto.createHash('md5').update(content).digest('hex');
+    }
+    /**
+     * Check if metanorma command is available in PATH.
+     */
+    async checkMetanormaAvailable() {
+        // Method 1: Try 'command -v'
+        try {
+            const exitCode = await exec.exec('command', ['-v', 'metanorma'], {
+                silent: true,
+                ignoreReturnCode: true
+            });
+            if (exitCode === 0) {
+                return true;
+            }
+        }
+        catch {
+            // Continue to next method
+        }
+        // Method 2: Try 'which' as fallback
+        try {
+            const exitCode = await exec.exec('which', ['metanorma'], {
+                silent: true,
+                ignoreReturnCode: true
+            });
+            return exitCode === 0;
+        }
+        catch {
+            return false;
+        }
+    }
+    /**
+     * Get the installed metanorma version.
+     */
+    async getInstalledVersion() {
+        try {
+            let stdout = '';
+            await exec.exec('metanorma', ['--version'], {
+                silent: true,
+                listeners: {
+                    stdout: (data) => {
+                        stdout += data.toString();
+                    }
+                }
+            });
+            // Parse version from common output formats:
+            // "metanorma version 1.14.3"
+            // "metanorma version v1.14.3"
+            // "1.14.3"
+            const patterns = [
+                /metanorma\s+version\s+v?(\d+\.\d+\.\d+)/i,
+                /^v?(\d+\.\d+\.\d+)$/m
+            ];
+            for (const pattern of patterns) {
+                const match = stdout.match(pattern);
+                if (match) {
+                    return match[1];
+                }
+            }
+            return null;
+        }
+        catch {
+            return null;
+        }
+    }
+    /**
+     * Validate the structure of a loaded state.
+     */
+    validateState(state) {
+        const required = [
+            'platform',
+            'installationMethod',
+            'checksum'
+        ];
+        for (const field of required) {
+            if (state[field] === undefined || state[field] === null) {
+                return { valid: false, reason: `Missing required field: ${field}` };
+            }
+        }
+        if (typeof state.checksum !== 'string' || state.checksum.length !== 32) {
+            return { valid: false, reason: 'Invalid checksum format' };
+        }
+        return { valid: true, reason: '' };
+    }
+    /**
+     * Create a standardized result object.
+     */
+    createResult(shouldSkip, reason, details, previousState, installedVersion) {
+        return {
+            shouldSkip,
+            reason,
+            details,
+            previousState,
+            installedVersion
+        };
+    }
+}
+exports.IdempotencyManager = IdempotencyManager;
+
+
+/***/ }),
+
+/***/ 9930:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+/**
+ * Idempotency module for setup-metanorma action.
+ *
+ * Provides functionality to detect when Metanorma is already installed
+ * and skip redundant installations.
+ *
+ * @example
+ * ```typescript
+ * import { IdempotencyManager } from './idempotency';
+ *
+ * const idempotency = new IdempotencyManager();
+ * const result = await idempotency.checkAndSkipIfAlreadyInstalled(settings);
+ *
+ * if (result.shouldSkip) {
+ *   core.info(`Skipping installation: ${result.details}`);
+ *   return;
+ * }
+ * ```
+ */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.IdempotencyManager = void 0;
+var idempotency_manager_1 = __nccwpck_require__(289);
+Object.defineProperty(exports, "IdempotencyManager", ({ enumerable: true, get: function () { return idempotency_manager_1.IdempotencyManager; } }));
+__exportStar(__nccwpck_require__(9415), exports);
+
+
+/***/ }),
+
+/***/ 9415:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DEFAULT_IDEMPOTENCY_CONFIG = void 0;
+/**
+ * Default idempotency configuration
+ */
+exports.DEFAULT_IDEMPOTENCY_CONFIG = {
+    enabled: true,
+    reinstallOnConfigChange: true,
+    stateFileName: '.metanorma-setup-state.json',
+    now: () => new Date().toISOString()
+};
 
 
 /***/ }),
@@ -1311,7 +1746,7 @@ class GemBaseInstaller extends base_installer_1.BaseInstaller {
      * 2. use-prebuilt-locks: false → Respect existing workspace Gemfile.lock
      * 3. User has workspace Gemfile → Use existing Gemfile
      * 4. User has workspace Gemfile.lock AND version matches → Use existing lock
-     * 5. Pre-built lock available from metanorma-gemfile-locks → Use with warning
+     * 5. Pre-built lock available from metanorma/versions → Use with warning
      * 6. Fallback: Dynamic Gemfile creation + bundle install
      */
     async setupGemfile(settings) {
@@ -1350,7 +1785,7 @@ class GemBaseInstaller extends base_installer_1.BaseInstaller {
                 return workspaceGemfile;
             }
         }
-        // 5. Try pre-built lock from metanorma-gemfile-locks
+        // 5. Try pre-built lock from metanorma/versions
         if (settings.version && settings.version !== 'latest') {
             const isAvailable = await this.fetcher.isVersionAvailable(settings.version);
             if (isAvailable) {
@@ -1373,7 +1808,7 @@ class GemBaseInstaller extends base_installer_1.BaseInstaller {
         return this.createDefaultGemfile(settings, workspaceGemfile);
     }
     /**
-     * Use pre-built Gemfile.lock from metanorma-gemfile-locks repository
+     * Use pre-built Gemfile.lock from metanorma/versions repository
      */
     async usePrebuiltGemfileLock(version, workspaceGemfile, workspaceLock, workspaceDir) {
         this.terminal.info(`Fetching pre-built Gemfile.lock for version ${version}...`);
@@ -1389,7 +1824,7 @@ class GemBaseInstaller extends base_installer_1.BaseInstaller {
         await fs.promises.writeFile(workspaceLock, lockContent);
         // Warn or info based on whether we replaced an existing lock
         if (existingLock) {
-            this.terminal.warnGemfileLockReplacement(existingLock, `metanorma-gemfile-locks/v${version}/Gemfile.lock`);
+            this.terminal.warnGemfileLockReplacement(existingLock, `v${version}/Gemfile.lock.archived (metanorma/versions)`);
         }
         else {
             this.terminal.infoPrebuiltLockUsed(version);
@@ -2365,12 +2800,15 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(7484));
+const exec = __importStar(__nccwpck_require__(5236));
 const input_helper_1 = __nccwpck_require__(5285);
 const installer_factory_1 = __nccwpck_require__(223);
 const stateHelper = __importStar(__nccwpck_require__(590));
 const version_1 = __nccwpck_require__(191);
+const idempotency_1 = __nccwpck_require__(9930);
 async function run() {
     let versionStore = null;
+    const idempotency = new idempotency_1.IdempotencyManager();
     try {
         // Initialize version store to get version data from mnenv
         // This is best-effort - if it fails, we'll fall back to existing behavior
@@ -2383,12 +2821,24 @@ async function run() {
         }
         // Get inputs
         const settings = await (0, input_helper_1.getInputs)();
+        // Check for idempotency (skip if already installed with same config)
+        const idempotencyResult = await idempotency.checkAndSkipIfAlreadyInstalled(settings);
+        if (idempotencyResult.shouldSkip) {
+            core.info(`✓ ${idempotencyResult.details}`);
+            // Still set outputs for downstream actions
+            setOutputs(settings, idempotencyResult.installedVersion);
+            return;
+        }
+        core.info(idempotencyResult.details || 'Proceeding with installation...');
         // Create and use installer
         const installer = installer_factory_1.InstallerFactory.createInstaller(settings.platform, settings.installationMethod, settings);
         // Install Metanorma
         await installer.install(settings);
+        // Save installation state for idempotency
+        const installedVersion = await getMetanormaVersion();
+        await idempotency.saveInstallationState(settings, installedVersion);
         // Set outputs if supported by the action
-        setOutputs(settings);
+        setOutputs(settings, installedVersion);
         core.info('✓ Metanorma installation completed successfully');
     }
     catch (error) {
@@ -2401,16 +2851,39 @@ async function cleanup() {
         const settings = await (0, input_helper_1.getInputs)();
         const installer = installer_factory_1.InstallerFactory.createInstaller(settings.platform, settings.installationMethod, settings);
         await installer.cleanup();
+        // Also clear idempotency state on cleanup
+        const idempotency = new idempotency_1.IdempotencyManager();
+        await idempotency.clearState();
     }
     catch (error) {
         core.warning(`${error?.message ?? error}`);
     }
 }
-function setOutputs(settings) {
+async function getMetanormaVersion() {
+    try {
+        let stdout = '';
+        await exec.exec('metanorma', ['--version'], {
+            silent: true,
+            listeners: {
+                stdout: (data) => {
+                    stdout += data.toString();
+                }
+            }
+        });
+        // Parse version from output (typically "metanorma version X.Y.Z")
+        const match = stdout.match(/metanorma\s+version\s+v?(\d+\.\d+\.\d+)/i);
+        return match ? match[1] : null;
+    }
+    catch {
+        return null;
+    }
+}
+function setOutputs(settings, installedVersion) {
     // Set outputs for downstream actions
-    core.setOutput('version', settings.version || 'latest');
+    core.setOutput('version', installedVersion || settings.version || 'latest');
     core.setOutput('platform', settings.platform);
     core.setOutput('installation-method', settings.installationMethod);
+    core.setOutput('idempotent', String(!!installedVersion));
 }
 // Main entry point - use async IIFE to ensure proper awaiting
 (async () => {
@@ -2773,7 +3246,7 @@ class Terminal {
             this.colorize('│ ⚠️  GEMFILE.LOCK REPLACED WITH PRE-BUILT VERSION                 │', AnsiColor.FgYellow),
             this.colorize('├──────────────────────────────────────────────────────────────────┤', AnsiColor.FgYellow),
             this.colorize('│ Your Gemfile.lock has been replaced with a pre-tested lock file  │', AnsiColor.FgYellow),
-            this.colorize('│ from metanorma-gemfile-locks repository.                         │', AnsiColor.FgYellow),
+            this.colorize('│ from metanorma/versions repository.                              │', AnsiColor.FgYellow),
             this.colorize('│                                                                  │', AnsiColor.FgYellow),
             this.colorize(`│ Original: ${this.padRight(originalLock, 57)}│`, AnsiColor.FgYellow),
             this.colorize(`│ Pre-built: ${this.padRight(prebuiltLock, 57)}│`, AnsiColor.FgYellow),
@@ -2805,7 +3278,7 @@ class Terminal {
             this.colorize('┌──────────────────────────────────────────────────────────────────┐', AnsiColor.FgGreen),
             this.colorize(`│ ✅ USING PRE-BUILT GEMFILE.LOCK FOR VERSION ${this.padRight(version, 34)}│`, AnsiColor.FgGreen),
             this.colorize('├──────────────────────────────────────────────────────────────────┤', AnsiColor.FgGreen),
-            this.colorize('│ Using pre-tested Gemfile.lock from metanorma-gemfile-locks       │', AnsiColor.FgGreen),
+            this.colorize('│ Using pre-tested Gemfile.lock from metanorma/versions            │', AnsiColor.FgGreen),
             this.colorize('│ repository for deterministic, tested dependency resolution.      │', AnsiColor.FgGreen),
             this.colorize('└──────────────────────────────────────────────────────────────────┘', AnsiColor.FgGreen),
             ''

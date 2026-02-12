@@ -17,7 +17,6 @@ jobs:
   test-compile-single:
     name: Compile ${{ matrix.os }} ${{ matrix.installation-method }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:

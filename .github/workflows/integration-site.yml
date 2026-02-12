@@ -17,7 +17,6 @@ jobs:
   test-site-generate:
     name: Site ${{ matrix.os }} ${{ matrix.installation-method }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:

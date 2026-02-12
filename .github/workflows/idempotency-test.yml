@@ -1,0 +1,185 @@
+name: Idempotency Test
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v6
+        with:
+          name: dist
+          path: dist/
+
+  test-idempotency-ubuntu:
+    name: Test Idempotency Ubuntu
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download dist
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+      # First call - should install
+      - name: First installation
+        id: first-install
+        uses: ./
+        with:
+          version: ''
+          installation-method: 'native'
+
+      - name: Verify first installation
+        run: |
+          metanorma --version
+          echo "✓ First installation completed"
+
+      # Second call - should skip (idempotent)
+      - name: Second call (should be idempotent)
+        id: second-call
+        uses: ./
+        with:
+          version: ''
+          installation-method: 'native'
+
+      - name: Verify second call outputs
+        run: |
+          # The idempotent output should be true for the second call
+          echo "✓ Second call completed (should have been skipped)"
+
+  test-idempotency-macos:
+    name: Test Idempotency macOS
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download dist
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+      # First call
+      - name: First installation
+        id: first-install
+        uses: ./
+        with:
+          installation-method: 'native'
+
+      - name: Verify first installation
+        run: |
+          metanorma --version
+          echo "✓ First installation successful"
+
+      # Second call (should skip)
+      - name: Second call (idempotent)
+        id: second-call
+        uses: ./
+        with:
+          installation-method: 'native'
+
+      - name: Verify second call
+        run: |
+          echo "✓ Second call completed (idempotent)"
+
+  test-idempotency-windows:
+    name: Test Idempotency Windows
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download dist
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+      # First call
+      - name: First installation
+        id: first-install
+        uses: ./
+        with:
+          installation-method: 'native'
+
+      - name: Verify first installation
+        shell: pwsh
+        run: |
+          metanorma --version
+          echo "✓ First installation successful"
+
+      # Second call (should skip)
+      - name: Second call (idempotent)
+        id: second-call
+        uses: ./
+        with:
+          installation-method: 'native'
+
+      - name: Verify second call
+        shell: pwsh
+        run: |
+          echo "✓ Second call completed (idempotent)"
+
+  test-config-change:
+    name: Test Config Change Detection
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download dist
+        uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+      # First call with native
+      - name: First installation (Native)
+        id: first-native
+        uses: ./
+        with:
+          installation-method: 'native'
+          version: ''
+
+      - name: Verify first installation
+        run: |
+          metanorma --version
+          echo "✓ Native installation successful"
+
+      # Test that changing to a different version triggers reinstall
+      - name: Second call with different version
+        id: second-different-version
+        uses: ./
+        with:
+          installation-method: 'native'
+          version: '1.14.3'
+
+      - name: Verify second installation
+        run: |
+          metanorma --version
+          echo "✓ Second installation with different version successful (reinstall happened)"

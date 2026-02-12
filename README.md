@@ -8,8 +8,9 @@ This action sets up the Metanorma toolchain and adds the command-line tools to t
 
 ## What's new
 
+- **Idempotent installation**: Automatically skips redundant installations when Metanorma is already installed with the same configuration - saves time in workflows that may call the action multiple times
 - **YAML-based version registry**: Fetches version data directly from [metanorma/versions](https://github.com/metanorma/versions) repository YAML files - no Ruby/Bundler dependencies
-- **Pre-built Gemfile.lock integration**: Automatically uses pre-tested Gemfile.lock files from [metanorma-gemfile-locks](https://github.com/metanorma/metanorma-gemfile-locks) for deterministic, tested dependency resolution
+- **Pre-built Gemfile.lock integration**: Automatically uses pre-tested Gemfile.lock files from [metanorma/versions](https://github.com/metanorma/versions) for deterministic, tested dependency resolution
 - **Dependency updates while keeping metanorma-cli pinned**: New `bundle-update` input allows updating dependencies while preserving the metanorma-cli version
 - **Revision-based Snap installation**: Install specific Metanorma versions on Linux using Snap revision pinning
 - **Platform-specific version management**: Each platform (Chocolatey, Homebrew, Snap, Gem) tracks available versions separately
@@ -55,7 +56,7 @@ This action sets up the Metanorma toolchain and adds the command-line tools to t
     # When true, runs 'bundle update --except metanorma-cli'
     bundle-update: 'false' # optional, default is 'false'
 
-    # Use pre-tested Gemfile.lock files from metanorma-gemfile-locks repository
+    # Use pre-tested Gemfile.lock files from metanorma/versions repository
     # When true and a specific version is requested, uses pre-built lock files
     # When false, respects existing Gemfile.lock in workspace
     use-prebuilt-locks: 'true' # optional, default is 'true'
@@ -69,6 +70,7 @@ This action sets up the Metanorma toolchain and adds the command-line tools to t
 | `version` | The installed Metanorma version |
 | `platform` | The platform Metanorma was installed on |
 | `installation-method` | The installation method used |
+| `idempotent` | Whether the action detected an existing installation (`true`) or performed a new installation (`false`) |
 
 ## Installation Methods
 
@@ -189,7 +191,7 @@ The action will:
 
 ### Use Pre-Built Gemfile.lock
 
-When you specify a version, the action automatically uses pre-tested Gemfile.lock files from the [metanorma-gemfile-locks](https://github.com/metanorma/metanorma-gemfile-locks) repository for deterministic, tested dependency resolution:
+When you specify a version, the action automatically uses pre-tested Gemfile.lock files from the [metanorma/versions](https://github.com/metanorma/versions) repository for deterministic, tested dependency resolution:
 
 ```yaml
 - uses: ruby/setup-ruby@v1
@@ -214,7 +216,7 @@ This provides:
 │ ⚠️  GEMFILE.LOCK REPLACED WITH PRE-BUILT VERSION                 │
 ├──────────────────────────────────────────────────────────────────┤
 │ Your Gemfile.lock has been replaced with a pre-tested lock file  │
-│ from metanorma-gemfile-locks repository.                         │
+│ from metanorma/versions repository.                              │
 │                                                                  │
 │ To disable this behavior, use use-prebuilt-locks: false          │
 └──────────────────────────────────────────────────────────────────┘
@@ -346,6 +348,46 @@ To install pre-release versions from Chocolatey:
     installation-method: 'native'
     choco-prerelease: 'true'
 ```
+
+## Idempotent Installation
+
+The action automatically detects when Metanorma is already installed with the same configuration and skips redundant installation steps. This is useful in workflows where the action may be called multiple times.
+
+### How It Works
+
+When the action runs, it:
+
+1. Checks if a previous installation state file exists (`.metanorma-setup-state.json`)
+2. Compares the current configuration (version, platform, installation method) with the saved state
+3. If the configuration matches and Metanorma is available in PATH, skips the installation
+4. If the configuration has changed or Metanorma is not available, performs a fresh installation
+
+### Checking Idempotency Status
+
+The `idempotent` output indicates whether installation was skipped:
+
+```yaml
+- uses: actions-mn/setup@v1
+  id: setup-metanorma
+
+- name: Check if installation was skipped
+  run: |
+    if [ "${{ steps.setup-metanorma.outputs.idempotent }}" == "true" ]; then
+      echo "Metanorma was already installed, skipped redundant installation"
+    else
+      echo "Metanorma was freshly installed"
+    fi
+```
+
+### Configuration Change Detection
+
+The action reinstalls Metanorma if any of these configuration values change:
+
+- `version`
+- `installation-method`
+- `snap-channel` (Linux)
+- `choco-prerelease` (Windows)
+- `platform` (detected automatically)
 
 ### Use in Docker Container
 
