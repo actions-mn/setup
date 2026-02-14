@@ -21,11 +21,10 @@ This action sets up the Metanorma toolchain and adds the command-line tools to t
 
 <!-- start usage -->
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
-    # Version of metanorma to install
-    # For native installations: empty (default) installs latest, or specify version like "1.14.4"
-    # For gem installations: empty respects Gemfile.lock, "latest" runs bundle update, or specific version
+    # Version of metanorma-cli gem to install
+    # For gem installations: empty (default) respects Gemfile.lock, "latest" runs bundle update, or specific version like "1.7.1" pins that version
     version: '' # optional, default is ''
 
     # Snapcraft channel (Linux only): stable, candidate, beta, edge
@@ -84,7 +83,7 @@ The action automatically detects the appropriate installation method based on th
 - **Docker**: Uses gem-based installation
 
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
 ```
 
 ### Native Package Installation
@@ -92,7 +91,7 @@ The action automatically detects the appropriate installation method based on th
 Forces installation using the platform's native package manager:
 
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'native'
     version: '1.14.4'
@@ -128,7 +127,7 @@ Install Metanorma as a Ruby gem using Bundler. Requires Ruby to be set up first.
     ruby-version: '3.4'
     bundler-cache: true
 
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'gem'
 ```
@@ -140,7 +139,7 @@ Install Metanorma as a Ruby gem using Bundler. Requires Ruby to be set up first.
 Install the latest version available on your platform:
 
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
 ```
 
 ### Install Specific Version (Native)
@@ -148,7 +147,7 @@ Install the latest version available on your platform:
 Install a specific Metanorma version using the native package manager:
 
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     version: '1.14.4'
 ```
@@ -164,7 +163,7 @@ Install a specific Metanorma version using gem:
   with:
     ruby-version: '3.4'
 
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'gem'
     version: '1.14.0'
@@ -179,7 +178,7 @@ When using gem-based installation with an existing Gemfile, the action respects 
   with:
     ruby-version: '3.4'
 
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'gem'
 ```
@@ -198,7 +197,7 @@ When you specify a version, the action automatically uses pre-tested Gemfile.loc
   with:
     ruby-version: '3.4'
 
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'gem'
     version: '1.14.3'
@@ -231,7 +230,7 @@ To disable automatic Gemfile.lock replacement and respect your workspace's Gemfi
   with:
     ruby-version: '3.4'
 
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'gem'
     version: '1.14.3'
@@ -247,7 +246,7 @@ To update all gem dependencies while keeping the metanorma-cli version pinned:
   with:
     ruby-version: '3.4'
 
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'gem'
     version: '1.14.3'
@@ -268,7 +267,7 @@ To update Metanorma to the latest gem version:
   with:
     ruby-version: '3.4'
 
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'gem'
     version: 'latest'
@@ -285,7 +284,7 @@ Specify a custom Gemfile path:
   with:
     ruby-version: '3.4'
 
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'gem'
     gemfile: 'tools/Gemfile'
@@ -300,7 +299,7 @@ By default, gem-based installation runs `bundle exec fontist update` to download
   with:
     ruby-version: '3.4'
 
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'gem'
     fontist-update: 'false'
@@ -311,7 +310,7 @@ By default, gem-based installation runs `bundle exec fontist update` to download
 Install Metanorma from a specific Snap channel:
 
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'native'
     snap-channel: 'edge' # options: stable, candidate, beta, edge
@@ -322,7 +321,7 @@ Install Metanorma from a specific Snap channel:
 On Linux, you can install a specific Snap revision corresponding to a Metanorma version:
 
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'native'
     version: '1.13.9'
@@ -343,7 +342,7 @@ This ensures you get exactly the Metanorma version you requested, with the abili
 To install pre-release versions from Chocolatey:
 
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     installation-method: 'native'
     choco-prerelease: 'true'
@@ -367,7 +366,7 @@ When the action runs, it:
 The `idempotent` output indicates whether installation was skipped:
 
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   id: setup-metanorma
 
 - name: Check if installation was skipped
@@ -402,7 +401,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - uses: actions-mn/setup@v1
+    - uses: actions-mn/setup@v3
       with:
         installation-method: 'gem'
 
@@ -422,7 +421,7 @@ jobs:
 
     # Alpine's musl libc is incompatible with ruby/setup-ruby
     # Use gem installation directly
-    - uses: actions-mn/setup@v1
+    - uses: actions-mn/setup@v3
       with:
         installation-method: 'gem'
 
@@ -494,7 +493,7 @@ Snap packages don't support version-specific channels like `1.14.3/stable`. Inst
 **Example:**
 
 ```yaml
-- uses: actions-mn/setup@v1
+- uses: actions-mn/setup@v3
   with:
     version: '1.13.9'
 ```
