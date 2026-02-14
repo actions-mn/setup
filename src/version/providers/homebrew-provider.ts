@@ -1,6 +1,6 @@
-import { VersionProvider } from './version-provider';
-import { MnenvAllVersions } from '../types/mnenv-types';
-import { HomebrewVersionInfo } from '../types/platform-types';
+import {VersionProvider} from './version-provider.js';
+import type {MnenvAllVersions} from '../types/mnenv-types.js';
+import type {HomebrewVersionInfo} from '../types/platform-types.js';
 
 /**
  * Provides Homebrew version information with git tag and commit details.
@@ -34,7 +34,9 @@ export class HomebrewProvider extends VersionProvider<HomebrewVersionInfo> {
   }
 }
 
-function transformVersions(mnenvVersions: MnenvHomebrewVersion[]): HomebrewVersionInfo[] {
+function transformVersions(
+  mnenvVersions: MnenvHomebrewVersion[]
+): HomebrewVersionInfo[] {
   return mnenvVersions.map(v => ({
     version: v.version,
     tagName: v.tag_name,

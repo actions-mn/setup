@@ -1,16 +1,17 @@
-import * as core from '@actions/core';
+import {warning, info, debug} from '@actions/core';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as exec from '@actions/exec';
-import {
+import {existsSync, promises as fs} from 'fs';
+import {join} from 'path';
+import {exec} from '@actions/exec';
+import type {
   InstallationState,
   IdempotencyResult,
   IIdempotencyConfig,
   ISettingsForChecksum,
   DEFAULT_IDEMPOTENCY_CONFIG
-} from './types';
-import {IMetanormaSettings} from '../metanorma-settings';
+} from './types.js';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
+import {DEFAULT_IDEMPOTENCY_CONFIG as defaultConfig} from './types.js';
 
 /**
  * Manages idempotency for the setup-metanorma action.
@@ -33,10 +34,10 @@ export class IdempotencyManager {
    * @param config - Optional configuration to override defaults
    */
   constructor(config?: Partial<IIdempotencyConfig>) {
-    this.config = {...DEFAULT_IDEMPOTENCY_CONFIG, ...config};
+    this.config = {...defaultConfig, ...config};
     const workspace = process.env['GITHUB_WORKSPACE'] || process.cwd();
-    this.stateFilePath = path.join(workspace, this.config.stateFileName);
-    core.debug(`Idempotency state file: ${this.stateFilePath}`);
+    this.stateFilePath = join(workspace, this.config.stateFileName);
+    debug(`Idempotency state file: ${this.stateFilePath}`);
   }
 
   /**
@@ -86,9 +87,9 @@ export class IdempotencyManager {
 
     // Check if configuration changed
     if (currentChecksum !== previousState.checksum) {
-      core.info(`Configuration changed since last installation`);
-      core.debug(`Previous checksum: ${previousState.checksum}`);
-      core.debug(`Current checksum: ${currentChecksum}`);
+      info(`Configuration changed since last installation`);
+      debug(`Previous checksum: ${previousState.checksum}`);
+      debug(`Current checksum: ${currentChecksum}`);
 
       if (this.config.reinstallOnConfigChange) {
         return this.createResult(
@@ -98,7 +99,9 @@ export class IdempotencyManager {
           previousState
         );
       } else {
-        core.warning('Configuration changed but reinstallOnConfigChange is disabled');
+        warning(
+          'Configuration changed but reinstallOnConfigChange is disabled'
+        );
       }
     }
 
@@ -106,7 +109,7 @@ export class IdempotencyManager {
     const isAvailable = await this.checkMetanormaAvailable();
 
     if (!isAvailable) {
-      core.info('Metanorma not found in PATH despite state file existing');
+      info('Metanorma not found in PATH despite state file existing');
       return this.createResult(
         false,
         'not_installed',
@@ -154,12 +157,12 @@ export class IdempotencyManager {
       };
 
       const content = JSON.stringify(state, null, 2);
-      await fs.promises.writeFile(this.stateFilePath, content, 'utf-8');
+      await fs.writeFile(this.stateFilePath, content, 'utf-8');
 
-      core.info(`Saved installation state to ${this.stateFilePath}`);
-      core.debug(`State: ${content}`);
+      info(`Saved installation state to ${this.stateFilePath}`);
+      debug(`State: ${content}`);
     } catch (error) {
-      core.warning(`Failed to save installation state: ${error}`);
+      warning(`Failed to save installation state: ${error}`);
     }
   }
 
@@ -171,29 +174,29 @@ export class IdempotencyManager {
   async loadInstallationState(): Promise<InstallationState | null> {
     try {
       // Check if state file exists
-      if (!fs.existsSync(this.stateFilePath)) {
-        core.debug(`State file does not exist: ${this.stateFilePath}`);
+      if (!existsSync(this.stateFilePath)) {
+        debug(`State file does not exist: ${this.stateFilePath}`);
         return null;
       }
 
       // Read and parse state file
-      const content = await fs.promises.readFile(this.stateFilePath, 'utf-8');
+      const content = await fs.readFile(this.stateFilePath, 'utf-8');
       const state = JSON.parse(content) as InstallationState;
 
       // Validate required fields
       const validation = this.validateState(state);
       if (!validation.valid) {
-        core.warning(`Invalid state file: ${validation.reason}`);
+        warning(`Invalid state file: ${validation.reason}`);
         return null;
       }
 
-      core.debug(`Loaded installation state from ${this.stateFilePath}`);
+      debug(`Loaded installation state from ${this.stateFilePath}`);
       return state;
     } catch (error) {
       if (error instanceof SyntaxError) {
-        core.warning(`Corrupt state file: ${error}`);
+        warning(`Corrupt state file: ${error}`);
       } else {
-        core.warning(`Failed to load installation state: ${error}`);
+        warning(`Failed to load installation state: ${error}`);
       }
       return null;
     }
@@ -204,12 +207,12 @@ export class IdempotencyManager {
    */
   async clearState(): Promise<void> {
     try {
-      if (fs.existsSync(this.stateFilePath)) {
-        await fs.promises.unlink(this.stateFilePath);
-        core.info('Cleared installation state');
+      if (existsSync(this.stateFilePath)) {
+        await fs.unlink(this.stateFilePath);
+        info('Cleared installation state');
       }
     } catch (error) {
-      core.warning(`Failed to clear state: ${error}`);
+      warning(`Failed to clear state: ${error}`);
     }
   }
 
@@ -226,7 +229,7 @@ export class IdempotencyManager {
   private checkEnvironmentMatch(
     settings: IMetanormaSettings,
     state: InstallationState
-  ): { matches: boolean; reason: string } {
+  ): {matches: boolean; reason: string} {
     // Check platform
     if (state.platform !== settings.platform) {
       return {
@@ -256,7 +259,7 @@ export class IdempotencyManager {
       };
     }
 
-    return { matches: true, reason: '' };
+    return {matches: true, reason: ''};
   }
 
   /**
@@ -290,7 +293,7 @@ export class IdempotencyManager {
   private async checkMetanormaAvailable(): Promise<boolean> {
     // Method 1: Try 'command -v'
     try {
-      const exitCode = await exec.exec('command', ['-v', 'metanorma'], {
+      const exitCode = await exec('command', ['-v', 'metanorma'], {
         silent: true,
         ignoreReturnCode: true
       });
@@ -303,7 +306,7 @@ export class IdempotencyManager {
 
     // Method 2: Try 'which' as fallback
     try {
-      const exitCode = await exec.exec('which', ['metanorma'], {
+      const exitCode = await exec('which', ['metanorma'], {
         silent: true,
         ignoreReturnCode: true
       });
@@ -320,7 +323,7 @@ export class IdempotencyManager {
     try {
       let stdout = '';
 
-      await exec.exec('metanorma', ['--version'], {
+      await exec('metanorma', ['--version'], {
         silent: true,
         listeners: {
           stdout: (data: Buffer) => {
@@ -354,9 +357,10 @@ export class IdempotencyManager {
   /**
    * Validate the structure of a loaded state.
    */
-  private validateState(
-    state: InstallationState
-  ): { valid: boolean; reason: string } {
+  private validateState(state: InstallationState): {
+    valid: boolean;
+    reason: string;
+  } {
     const required: (keyof InstallationState)[] = [
       'platform',
       'installationMethod',
@@ -365,15 +369,15 @@ export class IdempotencyManager {
 
     for (const field of required) {
       if (state[field] === undefined || state[field] === null) {
-        return { valid: false, reason: `Missing required field: ${field}` };
+        return {valid: false, reason: `Missing required field: ${field}`};
       }
     }
 
     if (typeof state.checksum !== 'string' || state.checksum.length !== 32) {
-      return { valid: false, reason: 'Invalid checksum format' };
+      return {valid: false, reason: 'Invalid checksum format'};
     }
 
-    return { valid: true, reason: '' };
+    return {valid: true, reason: ''};
   }
 
   /**

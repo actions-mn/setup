@@ -1,15 +1,14 @@
-import {Platform, InstallationMethod} from '../platform-detector';
-import {IMetanormaInstaller} from './base-installer';
-import {BrewInstaller} from './brew-installer';
-import {SnapInstaller} from './snap-installer';
-import {ChocoInstaller} from './choco-installer';
-import {GemUbuntuInstaller} from './gem-ubuntu-installer';
-import {GemAlpineInstaller} from './gem-alpine-installer';
-import {NativeGemInstaller} from './native-gem-installer';
-import {BinaryInstaller} from './binary-installer';
-import {IMetanormaSettings} from '../metanorma-settings';
-import {LinuxDistribution} from '../container-detector';
-import * as core from '@actions/core';
+import {info} from '@actions/core';
+import {Platform, InstallationMethod} from '../platform-detector.js';
+import type {IMetanormaInstaller} from './base-installer.js';
+import {BrewInstaller} from './brew-installer.js';
+import {SnapInstaller} from './snap-installer.js';
+import {ChocoInstaller} from './choco-installer.js';
+import {GemUbuntuInstaller} from './gem-ubuntu-installer.js';
+import {GemAlpineInstaller} from './gem-alpine-installer.js';
+import {NativeGemInstaller} from './native-gem-installer.js';
+import {BinaryInstaller} from './binary-installer.js';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
 
 /**
  * Factory for creating platform-specific installers
@@ -45,7 +44,9 @@ export class InstallerFactory {
   /**
    * Create a native package manager installer
    */
-  private static createNativeInstaller(platform: Platform): IMetanormaInstaller {
+  private static createNativeInstaller(
+    platform: Platform
+  ): IMetanormaInstaller {
     switch (platform) {
       case Platform.MacOS:
         return new BrewInstaller();
@@ -54,7 +55,9 @@ export class InstallerFactory {
       case Platform.Windows:
         return new ChocoInstaller();
       default:
-        throw new Error(`No native installer available for platform: ${platform}`);
+        throw new Error(
+          `No native installer available for platform: ${platform}`
+        );
     }
   }
 
@@ -69,16 +72,16 @@ export class InstallerFactory {
     if (settings.containerInfo && settings.containerInfo.isContainer) {
       const distribution = settings.containerInfo.distribution;
       if (distribution === 'alpine') {
-        core.info('Using Alpine gem installer');
+        info('Using Alpine gem installer');
         return new GemAlpineInstaller();
       }
       // Default to Ubuntu installer for ubuntu/debian/unknown
-      core.info('Using Ubuntu/Debian gem installer');
+      info('Using Ubuntu/Debian gem installer');
       return new GemUbuntuInstaller();
     }
 
     // Native OS gem installation
-    core.info('Using native gem installer (user provides Ruby)');
+    info('Using native gem installer (user provides Ruby)');
     return new NativeGemInstaller();
   }
 
@@ -91,12 +94,14 @@ export class InstallerFactory {
   ): IMetanormaInstaller {
     // If container detected, use gem-based installation
     if (settings.containerInfo && settings.containerInfo.isContainer) {
-      core.info('Auto-detected container environment → using gem-based installation');
+      info(
+        'Auto-detected container environment → using gem-based installation'
+      );
       return this.createGemInstaller(platform, settings);
     }
 
     // Default to native installation for non-container environments
-    core.info('Auto-detected native OS → using native package manager');
+    info('Auto-detected native OS → using native package manager');
     return this.createNativeInstaller(platform);
   }
 

@@ -1,5 +1,10 @@
 /** Supported platforms */
-export type Platform = 'gemfile' | 'snap' | 'homebrew' | 'chocolatey' | 'binary';
+export type Platform =
+  | 'gemfile'
+  | 'snap'
+  | 'homebrew'
+  | 'chocolatey'
+  | 'binary';
 
 /** Architecture types */
 export type Architecture = 'amd64' | 'arm64' | 'x86_64' | 'aarch64';

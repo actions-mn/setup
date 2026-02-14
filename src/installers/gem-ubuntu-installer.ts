@@ -1,6 +1,6 @@
-import {IMetanormaSettings} from '../metanorma-settings';
-import {GemBaseInstaller} from './gem-base-installer';
-import * as core from '@actions/core';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
+import {GemBaseInstaller} from './gem-base-installer.js';
+import {startGroup, endGroup, info} from '@actions/core';
 
 /**
  * Ubuntu/Debian gem-based installer
@@ -30,7 +30,7 @@ export class GemUbuntuInstaller extends GemBaseInstaller {
   protected async installRubyDevHeaders(
     _settings: IMetanormaSettings
   ): Promise<void> {
-    core.startGroup('Installing Ruby development headers');
+    startGroup('Installing Ruby development headers');
     const packages = [
       'ruby-dev',
       'build-essential',
@@ -45,7 +45,7 @@ export class GemUbuntuInstaller extends GemBaseInstaller {
       'libsqlite3-dev'
     ];
 
-    core.info(`Installing packages: ${packages.join(', ')}`);
+    info(`Installing packages: ${packages.join(', ')}`);
     const updateExitCode = await this.execCommand('sh', [
       '-c',
       'apt-get update'
@@ -62,8 +62,8 @@ export class GemUbuntuInstaller extends GemBaseInstaller {
       throw new Error('Failed to install Ruby development headers');
     }
 
-    core.info('✓ Ruby development headers installed');
-    core.endGroup();
+    info('✓ Ruby development headers installed');
+    endGroup();
   }
 
   /**
@@ -72,7 +72,7 @@ export class GemUbuntuInstaller extends GemBaseInstaller {
   protected async installRuntimeDependencies(
     _settings: IMetanormaSettings
   ): Promise<void> {
-    core.startGroup('Installing runtime dependencies');
+    startGroup('Installing runtime dependencies');
     const packages = [
       'git',
       'inkscape',
@@ -81,7 +81,7 @@ export class GemUbuntuInstaller extends GemBaseInstaller {
       'fontconfig'
     ];
 
-    core.info(`Installing packages: ${packages.join(', ')}`);
+    info(`Installing packages: ${packages.join(', ')}`);
     const exitCode = await this.execCommand('sh', [
       '-c',
       `apt-get install -y ${packages.join(' ')}`
@@ -90,15 +90,15 @@ export class GemUbuntuInstaller extends GemBaseInstaller {
       throw new Error('Failed to install runtime dependencies');
     }
 
-    core.info('✓ Runtime dependencies installed');
-    core.endGroup();
+    info('✓ Runtime dependencies installed');
+    endGroup();
   }
 
   /**
    * Install Metanorma via gem
    */
   async install(settings: IMetanormaSettings): Promise<void> {
-    core.startGroup('Installing Metanorma via gem (Ubuntu/Debian)');
+    startGroup('Installing Metanorma via gem (Ubuntu/Debian)');
 
     try {
       // Verify Ruby exists
@@ -127,9 +127,9 @@ export class GemUbuntuInstaller extends GemBaseInstaller {
       // Verify installation
       await this.verifyInstallation();
 
-      core.info('✓ Metanorma installed successfully via gem');
+      info('✓ Metanorma installed successfully via gem');
     } finally {
-      core.endGroup();
+      endGroup();
     }
   }
 
