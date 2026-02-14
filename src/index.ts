@@ -1,15 +1,15 @@
 // Main entry point
-export * from './main';
+export * from './main.js';
 
 // Settings and helpers
-export * from './metanorma-settings';
-export * from './input-helper';
-export * from './state-helper';
-export * from './platform-detector';
+export * from './metanorma-settings.js';
+export * from './input-helper.js';
+export * from './state-helper.js';
+export * from './platform-detector.js';
 
 // Installers
-export * from './installers/base-installer';
-export * from './installers/brew-installer';
-export * from './installers/snap-installer';
-export * from './installers/choco-installer';
-export * from './installers/installer-factory';
+export * from './installers/base-installer.js';
+export * from './installers/brew-installer.js';
+export * from './installers/snap-installer.js';
+export * from './installers/choco-installer.js';
+export * from './installers/installer-factory.js';

@@ -1,7 +1,7 @@
-import * as fs from 'fs';
-import * as core from '@actions/core';
-import * as exec from '@actions/exec';
-import {InstallationMethod} from './platform-detector';
+import {promises as fs} from 'fs';
+import {debug} from '@actions/core';
+import {exec} from '@actions/exec';
+import {InstallationMethod} from './platform-detector.js';
 
 /**
  * Container type enumeration
@@ -51,7 +51,7 @@ export async function detectContainer(): Promise<ContainerInfo> {
   // Check for Metanorma
   info.hasMetanorma = await commandExists('metanorma');
 
-  core.debug(`Container detection result: ${JSON.stringify(info)}`);
+  debug(`Container detection result: ${JSON.stringify(info)}`);
 
   return info;
 }
@@ -62,7 +62,7 @@ export async function detectContainer(): Promise<ContainerInfo> {
 async function detectContainerType(): Promise<ContainerType> {
   // Check for Docker: .dockerenv file
   if (await fileExists('/.dockerenv')) {
-    core.debug('Detected Docker container (via /.dockerenv)');
+    debug('Detected Docker container (via /.dockerenv)');
     return 'docker';
   }
 
@@ -70,30 +70,30 @@ async function detectContainerType(): Promise<ContainerType> {
   try {
     const cgroupPath = '/proc/1/cgroup';
     if (await fileExists(cgroupPath)) {
-      const cgroupContent = await fs.promises.readFile(cgroupPath, 'utf-8');
+      const cgroupContent = await fs.readFile(cgroupPath, 'utf-8');
       const cgroupLower = cgroupContent.toLowerCase();
 
       if (
         cgroupLower.includes('docker') ||
         cgroupLower.includes('containerd')
       ) {
-        core.debug('Detected Docker container (via /proc/1/cgroup)');
+        debug('Detected Docker container (via /proc/1/cgroup)');
         return 'docker';
       }
       if (cgroupLower.includes('podman')) {
-        core.debug('Detected Podman container');
+        debug('Detected Podman container');
         return 'podman';
       }
       if (cgroupLower.includes('lxc')) {
-        core.debug('Detected LXC container');
+        debug('Detected LXC container');
         return 'lxc';
       }
     }
   } catch (error) {
-    core.debug(`Error reading cgroup: ${error}`);
+    debug(`Error reading cgroup: ${error}`);
   }
 
-  core.debug('No container detected');
+  debug('No container detected');
   return 'none';
 }
 
@@ -103,7 +103,7 @@ async function detectContainerType(): Promise<ContainerType> {
 async function detectDistribution(): Promise<LinuxDistribution> {
   // Check Alpine via /etc/alpine-release
   if (await fileExists('/etc/alpine-release')) {
-    core.debug('Detected Alpine Linux distribution');
+    debug('Detected Alpine Linux distribution');
     return 'alpine';
   }
 
@@ -111,32 +111,29 @@ async function detectDistribution(): Promise<LinuxDistribution> {
   const osReleasePath = '/etc/os-release';
   if (await fileExists(osReleasePath)) {
     try {
-      const osReleaseContent = await fs.promises.readFile(
-        osReleasePath,
-        'utf-8'
-      );
+      const osReleaseContent = await fs.readFile(osReleasePath, 'utf-8');
       const osReleaseLower = osReleaseContent.toLowerCase();
 
       if (osReleaseLower.includes('ubuntu')) {
-        core.debug('Detected Ubuntu distribution');
+        debug('Detected Ubuntu distribution');
         return 'ubuntu';
       }
       if (osReleaseLower.includes('debian')) {
-        core.debug('Detected Debian distribution');
+        debug('Detected Debian distribution');
         return 'debian';
       }
     } catch (error) {
-      core.debug(`Error reading os-release: ${error}`);
+      debug(`Error reading os-release: ${error}`);
     }
   }
 
   // Fallback to /etc/debian_version
   if (await fileExists('/etc/debian_version')) {
-    core.debug('Detected Debian distribution (via /etc/debian_version)');
+    debug('Detected Debian distribution (via /etc/debian_version)');
     return 'debian';
   }
 
-  core.debug('Could not detect specific Linux distribution');
+  debug('Could not detect specific Linux distribution');
   return 'unknown';
 }
 
@@ -185,7 +182,7 @@ export async function getInstallationMethod(
  */
 async function fileExists(filePath: string): Promise<boolean> {
   try {
-    await fs.promises.access(filePath);
+    await fs.access(filePath);
     return true;
   } catch {
     return false;
@@ -213,7 +210,7 @@ async function commandExists(command: string): Promise<boolean> {
       }
     };
 
-    const exitCode = await exec.exec('command', ['-v', command], options);
+    const exitCode = await exec('command', ['-v', command], options);
     return exitCode === 0;
   } catch {
     return false;

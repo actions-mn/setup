@@ -1,7 +1,7 @@
-import {IMetanormaSettings} from '../metanorma-settings';
-import {BaseInstaller} from './base-installer';
-import {saveTempFile} from '../state-helper';
-import * as core from '@actions/core';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
+import {BaseInstaller} from './base-installer.js';
+import {saveTempFile} from '../state-helper.js';
+import {startGroup, endGroup, info, debug} from '@actions/core';
 
 /**
  * macOS Homebrew installer
@@ -12,7 +12,7 @@ export class BrewInstaller extends BaseInstaller {
   private localTap = 'actions-mn/setup';
 
   async install(settings: IMetanormaSettings): Promise<void> {
-    core.startGroup('Installing Metanorma via Homebrew');
+    startGroup('Installing Metanorma via Homebrew');
 
     try {
       let command = 'brew';
@@ -20,7 +20,8 @@ export class BrewInstaller extends BaseInstaller {
 
       if (settings.version) {
         // For versioned installs, tap at a specific version
-        const tapDir = '/opt/homebrew/Library/Taps/metanorma/homebrew-metanorma';
+        const tapDir =
+          '/opt/homebrew/Library/Taps/metanorma/homebrew-metanorma';
 
         // Ensure tap exists
         await this.execCommand('brew', ['tap', 'metanorma/metanorma'], {
@@ -47,21 +48,25 @@ export class BrewInstaller extends BaseInstaller {
         args.push('metanorma/metanorma/metanorma');
       }
 
-      core.info(`Installing Metanorma${settings.version ? ` version ${settings.version}` : ' latest'}...`);
+      info(
+        `Installing Metanorma${settings.version ? ` version ${settings.version}` : ' latest'}...`
+      );
       const exitCode = await this.execCommand(command, args);
 
       if (exitCode !== 0) {
-        throw new Error(`Homebrew installation failed with exit code ${exitCode}`);
+        throw new Error(
+          `Homebrew installation failed with exit code ${exitCode}`
+        );
       }
 
-      core.info('✓ Metanorma installed successfully via Homebrew');
+      info('✓ Metanorma installed successfully via Homebrew');
     } finally {
-      core.endGroup();
+      endGroup();
     }
   }
 
   async cleanup(): Promise<void> {
-    core.startGroup('Cleaning up Homebrew installation');
+    startGroup('Cleaning up Homebrew installation');
 
     try {
       // Untap the local tap if it exists
@@ -70,9 +75,9 @@ export class BrewInstaller extends BaseInstaller {
         ignoreReturnCode: true
       });
 
-      core.info('✓ Cleanup completed');
+      info('✓ Cleanup completed');
     } finally {
-      core.endGroup();
+      endGroup();
     }
   }
 }

@@ -1,13 +1,14 @@
-import * as core from '@actions/core';
-import * as exec from '@actions/exec';
+import {info, warning} from '@actions/core';
+import {exec} from '@actions/exec';
+import type {ExecOptions} from '@actions/exec';
 import * as tc from '@actions/tool-cache';
-import * as fs from 'fs';
+import {createWriteStream} from 'fs';
 import fetch from 'node-fetch';
 import {
   validateVersion,
   getLatestVersion,
   isVersionAvailable
-} from './version-validator';
+} from './version-validator.js';
 
 const IS_WINDOWS = process.platform === 'win32';
 const IS_MACOSX = process.platform === 'darwin';
@@ -16,7 +17,7 @@ const IS_LINUX = process.platform === 'linux';
 async function download(url: string, path: string) {
   const res = await fetch(url);
   await new Promise<void>((resolve, reject) => {
-    const fileStream = fs.createWriteStream(path);
+    const fileStream = createWriteStream(path);
     if (res.body) {
       res.body.pipe(fileStream);
       res.body.on('error', err => {
@@ -26,7 +27,7 @@ async function download(url: string, path: string) {
         resolve();
       });
     } else {
-      reject('Missing body in response');
+      reject(new Error('Missing body in response'));
     }
   });
 }
@@ -52,7 +53,7 @@ export async function installMetanormaVersion(
   }
 
   let cmds: string[] = [];
-  let options: exec.ExecOptions = {};
+  let options: ExecOptions = {};
   let ignoreFailure: boolean = false;
 
   if (IS_MACOSX) {
@@ -61,20 +62,20 @@ export async function installMetanormaVersion(
       const tapDir = '/opt/homebrew/Library/Taps/metanorma/homebrew-metanorma';
 
       // Ensure tap exists
-      await exec.exec('brew', ['tap', 'metanorma/metanorma'], {
+      await exec('brew', ['tap', 'metanorma/metanorma'], {
         silent: true,
         ignoreReturnCode: true
       });
 
       // Checkout the specific version tag
-      await exec.exec('git', ['checkout', `v${version}`], {
+      await exec('git', ['checkout', `v${version}`], {
         cwd: tapDir,
         silent: true,
         ignoreReturnCode: true
       });
 
       // Update brew to pick up the changes
-      await exec.exec('brew', ['update', 'metanorma/metanorma'], {
+      await exec('brew', ['update', 'metanorma/metanorma'], {
         silent: true,
         ignoreReturnCode: true
       });
@@ -106,7 +107,7 @@ export async function installMetanormaVersion(
 
     options.ignoreReturnCode = true;
     options.listeners = {
-      stdout: data => {
+      stdout: (data: Buffer) => {
         if (!ignoreFailure) {
           ignoreFailure = data.toString().includes(' - git.install (exited 1)');
         }
@@ -120,7 +121,7 @@ export async function installMetanormaVersion(
 
   if (cmds.length) {
     for (const cmd of cmds) {
-      let statusCode = await exec.exec(cmd, [], options);
+      let statusCode = await exec(cmd, [], options);
       if (statusCode != 0 && !ignoreFailure) {
         throw new Error(`Command ${cmd} failed with exit code ${statusCode}`);
       }

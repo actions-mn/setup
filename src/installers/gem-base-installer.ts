@@ -1,12 +1,12 @@
-import {IMetanormaSettings} from '../metanorma-settings';
-import {BaseInstaller} from './base-installer';
-import * as core from '@actions/core';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
+import {BaseInstaller} from './base-installer.js';
+import {startGroup, endGroup, info, warning, debug} from '@actions/core';
 import * as exec from '@actions/exec';
-import * as fs from 'fs';
+import {promises as fs} from 'fs';
 import * as path from 'path';
-import {GemfileLocksFetcher} from '../gemfile-locks';
-import {Terminal} from '../terminal';
-import {getVersionStore} from '../version';
+import {GemfileLocksFetcher} from '../gemfile-locks.js';
+import {Terminal} from '../terminal.js';
+import {getVersionStore} from '../version/index.js';
 
 /**
  * Abstract base class for gem-based installers
@@ -93,7 +93,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
    */
   protected async fileExists(filePath: string): Promise<boolean> {
     try {
-      await fs.promises.access(filePath);
+      await fs.access(filePath);
       return true;
     } catch {
       return false;
@@ -105,7 +105,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
    */
   protected parseVersion(
     version: string
-  ): { major: number; minor: number; patch: number } | null {
+  ): {major: number; minor: number; patch: number} | null {
     const match = version.match(/^(\d+)\.(\d+)\.(\d+)/);
     if (!match) return null;
     return {
@@ -119,8 +119,8 @@ export abstract class GemBaseInstaller extends BaseInstaller {
    * Compare versions: a <= b
    */
   protected versionLessThanOrEqual(
-    a: { major: number; minor: number; patch: number },
-    b: { major: number; minor: number; patch: number }
+    a: {major: number; minor: number; patch: number},
+    b: {major: number; minor: number; patch: number}
   ): boolean {
     if (a.major !== b.major) return a.major < b.major;
     if (a.minor !== b.minor) return a.minor < b.minor;
@@ -172,8 +172,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
     }
 
     // Detect workspace directory (GITHUB_WORKSPACE or current working directory)
-    const workspaceDir =
-      process.env.GITHUB_WORKSPACE || process.cwd();
+    const workspaceDir = process.env.GITHUB_WORKSPACE || process.cwd();
     const workspaceGemfile = path.join(workspaceDir, 'Gemfile');
     const workspaceLock = path.join(workspaceDir, 'Gemfile.lock');
 
@@ -189,30 +188,48 @@ export abstract class GemBaseInstaller extends BaseInstaller {
 
     // 2. Check if prebuilt locks are disabled
     if (settings.usePrebuiltLocks === false) {
-      this.terminal.info('Pre-built locks disabled, respecting workspace Gemfile.lock');
-      return this.setupWorkspaceGemfile(settings, workspaceGemfile, workspaceLock);
+      this.terminal.info(
+        'Pre-built locks disabled, respecting workspace Gemfile.lock'
+      );
+      return this.setupWorkspaceGemfile(
+        settings,
+        workspaceGemfile,
+        workspaceLock
+      );
     }
 
     // 3. Check for existing workspace Gemfile (respects user's Gemfile)
     if (await this.fileExists(workspaceGemfile)) {
-      this.terminal.info(`Using existing Gemfile from workspace: ${workspaceGemfile}`);
+      this.terminal.info(
+        `Using existing Gemfile from workspace: ${workspaceGemfile}`
+      );
       return workspaceGemfile;
     }
 
     // 4. Check for existing workspace Gemfile.lock with matching version
     if (await this.fileExists(workspaceLock)) {
-      const lockVersion = await this.extractMetanormaVersionFromLock(workspaceLock);
+      const lockVersion =
+        await this.extractMetanormaVersionFromLock(workspaceLock);
       if (settings.version && lockVersion === settings.version) {
-        this.terminal.success(`Using existing Gemfile.lock (matches version ${settings.version})`);
+        this.terminal.success(
+          `Using existing Gemfile.lock (matches version ${settings.version})`
+        );
         return workspaceGemfile;
       }
     }
 
     // 5. Try pre-built lock from metanorma/versions
     if (settings.version && settings.version !== 'latest') {
-      const isAvailable = await this.fetcher.isVersionAvailable(settings.version);
+      const isAvailable = await this.fetcher.isVersionAvailable(
+        settings.version
+      );
       if (isAvailable) {
-        return await this.usePrebuiltGemfileLock(settings.version, workspaceGemfile, workspaceLock, workspaceDir);
+        return await this.usePrebuiltGemfileLock(
+          settings.version,
+          workspaceGemfile,
+          workspaceLock,
+          workspaceDir
+        );
       }
     }
 
@@ -230,7 +247,9 @@ export abstract class GemBaseInstaller extends BaseInstaller {
   ): Promise<string> {
     // Check workspace Gemfile
     if (await this.fileExists(workspaceGemfile)) {
-      this.terminal.info(`Using existing Gemfile from workspace: ${workspaceGemfile}`);
+      this.terminal.info(
+        `Using existing Gemfile from workspace: ${workspaceGemfile}`
+      );
       return workspaceGemfile;
     }
 
@@ -247,24 +266,30 @@ export abstract class GemBaseInstaller extends BaseInstaller {
     workspaceLock: string,
     workspaceDir: string
   ): Promise<string> {
-    this.terminal.info(`Fetching pre-built Gemfile.lock for version ${version}...`);
+    this.terminal.info(
+      `Fetching pre-built Gemfile.lock for version ${version}...`
+    );
 
     const gemfileContent = await this.fetcher.fetchGemfile(version);
     const lockContent = await this.fetcher.fetchGemfileLock(version);
 
     if (!gemfileContent || !lockContent) {
-      this.terminal.warning(`Failed to fetch pre-built files for version ${version}, falling back to dynamic installation`);
+      this.terminal.warning(
+        `Failed to fetch pre-built files for version ${version}, falling back to dynamic installation`
+      );
       return this.createDefaultGemfile(
         {version} as IMetanormaSettings,
         workspaceGemfile
       );
     }
 
-    const existingLock = await this.fileExists(workspaceLock) ? workspaceLock : null;
+    const existingLock = (await this.fileExists(workspaceLock))
+      ? workspaceLock
+      : null;
 
     // Write pre-built files
-    await fs.promises.writeFile(workspaceGemfile, gemfileContent);
-    await fs.promises.writeFile(workspaceLock, lockContent);
+    await fs.writeFile(workspaceGemfile, gemfileContent);
+    await fs.writeFile(workspaceLock, lockContent);
 
     // Warn or info based on whether we replaced an existing lock
     if (existingLock) {
@@ -282,9 +307,11 @@ export abstract class GemBaseInstaller extends BaseInstaller {
   /**
    * Extract metanorma-cli version from Gemfile.lock
    */
-  private async extractMetanormaVersionFromLock(lockPath: string): Promise<string | null> {
+  private async extractMetanormaVersionFromLock(
+    lockPath: string
+  ): Promise<string | null> {
     try {
-      const content = await fs.promises.readFile(lockPath, 'utf-8');
+      const content = await fs.readFile(lockPath, 'utf-8');
       // Match patterns like:
       //     metanorma-cli (1.14.3)
       // or
@@ -321,7 +348,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
       gemfileContent += `gem 'metanorma-cli'\n`;
     }
 
-    await fs.promises.writeFile(workspaceGemfile, gemfileContent);
+    await fs.writeFile(workspaceGemfile, gemfileContent);
     this.terminal.info(`Created default Gemfile at: ${workspaceGemfile}`);
     return workspaceGemfile;
   }
@@ -334,7 +361,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
     gemfilePath: string,
     version: string
   ): Promise<void> {
-    const content = await fs.promises.readFile(gemfilePath, 'utf-8');
+    const content = await fs.readFile(gemfilePath, 'utf-8');
     const lines = content.split('\n');
 
     // [Experimental] Check if we need to add fontist ~> 2.1
@@ -343,8 +370,11 @@ export abstract class GemBaseInstaller extends BaseInstaller {
     // Find and update the metanorma-cli gem line
     let metanormaUpdated = false;
     let hasFontist = false;
-    const newLines = lines.map((line) => {
-      if (line.includes("gem 'metanorma-cli'") || line.includes('gem "metanorma-cli"')) {
+    const newLines = lines.map((line: string) => {
+      if (
+        line.includes("gem 'metanorma-cli'") ||
+        line.includes('gem "metanorma-cli"')
+      ) {
         metanormaUpdated = true;
         // Preserve the quote style
         const quote = line.includes('"') ? '"' : "'";
@@ -367,7 +397,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
       // [Experimental] Add fontist ~> 2.1 if it doesn't exist
       // Insert before the metanorma-cli line
       const metanormaIndex = newLines.findIndex(
-        (line) =>
+        line =>
           line.includes("gem 'metanorma-cli'") ||
           line.includes('gem "metanorma-cli"')
       );
@@ -376,7 +406,7 @@ export abstract class GemBaseInstaller extends BaseInstaller {
       }
     }
 
-    await fs.promises.writeFile(gemfilePath, newLines.join('\n'));
+    await fs.writeFile(gemfilePath, newLines.join('\n'));
     this.terminal.info(
       `[Experimental] Updated Gemfile at ${gemfilePath} with version ${version}`
     );
@@ -397,7 +427,9 @@ export abstract class GemBaseInstaller extends BaseInstaller {
    * Run bundle update (updates to latest versions)
    */
   protected async bundleUpdate(): Promise<void> {
-    this.terminal.info('Running bundle update (updates Gemfile.lock to latest)');
+    this.terminal.info(
+      'Running bundle update (updates Gemfile.lock to latest)'
+    );
     const exitCode = await this.execCommand('bundle', ['update']);
     if (exitCode !== 0) {
       throw new Error('bundle update failed');
@@ -409,7 +441,11 @@ export abstract class GemBaseInstaller extends BaseInstaller {
    */
   protected async updateFontist(): Promise<void> {
     this.terminal.info('Updating Fontist formulas');
-    const exitCode = await this.execCommand('bundle', ['exec', 'fontist', 'update']);
+    const exitCode = await this.execCommand('bundle', [
+      'exec',
+      'fontist',
+      'update'
+    ]);
     if (exitCode !== 0) {
       this.terminal.warning('fontist update failed, continuing...');
     }
@@ -434,7 +470,9 @@ export abstract class GemBaseInstaller extends BaseInstaller {
       options
     );
     if (exitCode === 0) {
-      this.terminal.success(`Metanorma installed successfully: ${output.trim()}`);
+      this.terminal.success(
+        `Metanorma installed successfully: ${output.trim()}`
+      );
     } else {
       throw new Error('metanorma --version failed');
     }
@@ -452,9 +490,13 @@ export abstract class GemBaseInstaller extends BaseInstaller {
     gemfilePath: string
   ): Promise<void> {
     if (settings.bundleUpdate) {
-      this.terminal.info('Running bundle update (keeping metanorma-cli version pinned)...');
+      this.terminal.info(
+        'Running bundle update (keeping metanorma-cli version pinned)...'
+      );
       await this.bundleUpdateExceptMetanorma();
-      this.terminal.success('Dependencies updated (metanorma-cli version preserved)');
+      this.terminal.success(
+        'Dependencies updated (metanorma-cli version preserved)'
+      );
     } else if (settings.version === 'latest') {
       this.terminal.info('version: "latest" specified → running bundle update');
       await this.bundleUpdate();
@@ -464,7 +506,9 @@ export abstract class GemBaseInstaller extends BaseInstaller {
       );
       await this.bundleInstall();
     } else {
-      this.terminal.info('no version specified → running bundle install (respects Gemfile.lock)');
+      this.terminal.info(
+        'no version specified → running bundle install (respects Gemfile.lock)'
+      );
       await this.bundleInstall();
     }
   }
@@ -473,7 +517,11 @@ export abstract class GemBaseInstaller extends BaseInstaller {
    * Run bundle update (keeping metanorma-cli version pinned)
    */
   private async bundleUpdateExceptMetanorma(): Promise<void> {
-    const exitCode = await this.execCommand('bundle', ['update', '--except', 'metanorma-cli']);
+    const exitCode = await this.execCommand('bundle', [
+      'update',
+      '--except',
+      'metanorma-cli'
+    ]);
     if (exitCode !== 0) {
       throw new Error('bundle update --except metanorma-cli failed');
     }

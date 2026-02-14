@@ -1,5 +1,9 @@
-import { IVersionProvider, VersionInfo, Platform } from '../types/provider-types';
-import { PlatformVersionData } from '../types/platform-types';
+import type {
+  IVersionProvider,
+  VersionInfo,
+  Platform
+} from '../types/provider-types.js';
+import type {PlatformVersionData} from '../types/platform-types.js';
 
 /**
  * Abstract base class for version providers.
@@ -7,13 +11,13 @@ import { PlatformVersionData } from '../types/platform-types';
  *
  * @abstract Subclasses must implement getVersionsInternal()
  */
-export abstract class VersionProvider<T extends VersionInfo = VersionInfo>
-  implements IVersionProvider<T>
-{
+export abstract class VersionProvider<
+  T extends VersionInfo = VersionInfo
+> implements IVersionProvider<T> {
   protected data: PlatformVersionData<T>;
 
   constructor(data: PlatformVersionData<T>) {
-    this.data = Object.freeze({ ...data, versions: [...data.versions] });
+    this.data = Object.freeze({...data, versions: [...data.versions]});
   }
 
   /** Platform identifier (must be implemented by subclass) */

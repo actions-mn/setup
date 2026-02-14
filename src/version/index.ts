@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { getVersionStore } from './version';
+ * import { getVersionStore } from './version/index.js';
  *
  * const store = await getVersionStore();
  * const snapProvider = store.getSnapProvider();
@@ -20,24 +20,24 @@
  * ```
  */
 
-export { VersionDataStore } from './store/version-data-store';
-export { MnenvYamlFetcher } from './client/mnenv-yaml-fetcher';
+export {VersionDataStore} from './store/version-data-store.js';
+export {MnenvYamlFetcher} from './client/mnenv-yaml-fetcher.js';
 
 // Providers
-export { VersionProvider } from './providers/version-provider';
-export { SnapProvider } from './providers/snap-provider';
-export { GemfileProvider } from './providers/gemfile-provider';
-export { HomebrewProvider } from './providers/homebrew-provider';
-export { ChocolateyProvider } from './providers/chocolatey-provider';
-export { BinaryProvider } from './providers/binary-provider';
+export {VersionProvider} from './providers/version-provider.js';
+export {SnapProvider} from './providers/snap-provider.js';
+export {GemfileProvider} from './providers/gemfile-provider.js';
+export {HomebrewProvider} from './providers/homebrew-provider.js';
+export {ChocolateyProvider} from './providers/chocolatey-provider.js';
+export {BinaryProvider} from './providers/binary-provider.js';
 
 // Types
-export * from './types/platform-types';
-export * from './types/provider-types';
-export * from './types/mnenv-types';
+export * from './types/platform-types.js';
+export * from './types/provider-types.js';
+export * from './types/mnenv-types.js';
 
 // Convenience function
-import { VersionDataStore } from './store/version-data-store';
+import {VersionDataStore} from './store/version-data-store.js';
 
 /**
  * Get the singleton VersionDataStore instance.

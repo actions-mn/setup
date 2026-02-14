@@ -1,12 +1,12 @@
-import { VersionProvider } from './version-provider';
-import { MnenvAllVersions } from '../types/mnenv-types';
-import {
+import {VersionProvider} from './version-provider.js';
+import type {MnenvAllVersions} from '../types/mnenv-types.js';
+import type {
   BinaryVersionInfo,
   BinaryPlatformArtifact,
   BinaryPlatformName,
   BinaryFormat,
-  Architecture,
-} from '../types/platform-types';
+  Architecture
+} from '../types/platform-types.js';
 
 /**
  * Provides binary (packed-mn) version information with platform-specific artifacts.
@@ -46,10 +46,11 @@ export class BinaryProvider extends VersionProvider<BinaryVersionInfo> {
     variant?: string
   ): BinaryPlatformArtifact | undefined {
     const platforms = this.getPlatforms(version);
-    return platforms.find(p =>
-      p.name === platformName &&
-      p.arch === arch &&
-      (variant ? p.variant === variant : !p.variant)
+    return platforms.find(
+      p =>
+        p.name === platformName &&
+        p.arch === arch &&
+        (variant ? p.variant === variant : !p.variant)
     );
   }
 
@@ -65,18 +66,17 @@ export class BinaryProvider extends VersionProvider<BinaryVersionInfo> {
     const targetVariant = this.detectVariant();
 
     // Try exact match first (platform + arch + variant)
-    const exactMatch = platforms.find(p =>
-      p.name === targetName &&
-      p.arch === targetArch &&
-      p.variant === targetVariant
+    const exactMatch = platforms.find(
+      p =>
+        p.name === targetName &&
+        p.arch === targetArch &&
+        p.variant === targetVariant
     );
     if (exactMatch) return exactMatch;
 
     // Try platform + arch without variant
-    const archMatch = platforms.find(p =>
-      p.name === targetName &&
-      p.arch === targetArch &&
-      !p.variant
+    const archMatch = platforms.find(
+      p => p.name === targetName && p.arch === targetArch && !p.variant
     );
     if (archMatch) return archMatch;
 
@@ -119,9 +119,7 @@ export class BinaryProvider extends VersionProvider<BinaryVersionInfo> {
     platformName: BinaryPlatformName
   ): Architecture[] {
     const platforms = this.getPlatforms(version);
-    return platforms
-      .filter(p => p.name === platformName)
-      .map(p => p.arch);
+    return platforms.filter(p => p.name === platformName).map(p => p.arch);
   }
 
   /**
@@ -173,7 +171,9 @@ export class BinaryProvider extends VersionProvider<BinaryVersionInfo> {
 
 // Helper functions
 
-function transformBinaryVersions(mnenvVersions: MnenvBinaryVersion[]): BinaryVersionInfo[] {
+function transformBinaryVersions(
+  mnenvVersions: MnenvBinaryVersion[]
+): BinaryVersionInfo[] {
   return mnenvVersions.map(v => ({
     version: v.version,
     tagName: v.tag_name,
@@ -188,8 +188,8 @@ function transformBinaryVersions(mnenvVersions: MnenvBinaryVersion[]): BinaryVer
       filename: p.filename,
       url: p.url,
       size: p.size,
-      variant: p.variant,
-    })),
+      variant: p.variant
+    }))
   }));
 }
 

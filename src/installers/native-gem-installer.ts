@@ -1,7 +1,7 @@
-import {IMetanormaSettings} from '../metanorma-settings';
-import {GemBaseInstaller} from './gem-base-installer';
-import * as core from '@actions/core';
-import {Platform} from '../platform-detector';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
+import {GemBaseInstaller} from './gem-base-installer.js';
+import {startGroup, endGroup, info, warning, debug} from '@actions/core';
+import {Platform} from '../platform-detector.js';
 
 /**
  * Native OS gem-based installer
@@ -36,7 +36,7 @@ export class NativeGemInstaller extends GemBaseInstaller {
   ): Promise<void> {
     // On Linux, install development packages needed for native gem extensions
     if (settings.platform === Platform.Linux) {
-      core.startGroup('Installing build dependencies for native gems');
+      startGroup('Installing build dependencies for native gems');
 
       // Try apt-get first (Debian/Ubuntu)
       const hasApt = await this.commandExists('apt-get');
@@ -53,7 +53,7 @@ export class NativeGemInstaller extends GemBaseInstaller {
           'libcurl4-openssl-dev',
           'libsqlite3-dev'
         ];
-        core.info(`Installing packages: ${packages.join(', ')}`);
+        info(`Installing packages: ${packages.join(', ')}`);
         const updateExitCode = await this.execCommand('sudo', [
           'apt-get',
           'update'
@@ -72,8 +72,8 @@ export class NativeGemInstaller extends GemBaseInstaller {
           throw new Error('Failed to install build dependencies');
         }
 
-        core.info('✓ Build dependencies installed');
-        core.endGroup();
+        info('✓ Build dependencies installed');
+        endGroup();
         return;
       }
 
@@ -91,23 +91,27 @@ export class NativeGemInstaller extends GemBaseInstaller {
           'curl-dev',
           'sqlite-dev'
         ];
-        core.info(`Installing packages: ${packages.join(', ')}`);
-        const exitCode = await this.execCommand('sudo', ['apk', 'add', ...packages]);
+        info(`Installing packages: ${packages.join(', ')}`);
+        const exitCode = await this.execCommand('sudo', [
+          'apk',
+          'add',
+          ...packages
+        ]);
         if (exitCode !== 0) {
           throw new Error('Failed to install build dependencies');
         }
 
-        core.info('✓ Build dependencies installed');
-        core.endGroup();
+        info('✓ Build dependencies installed');
+        endGroup();
         return;
       }
 
-      core.warning(
+      warning(
         'Could not detect package manager. Native gems may fail to build.'
       );
-      core.endGroup();
+      endGroup();
     } else {
-      core.debug('Skipping Ruby dev headers (not needed on macOS/Windows)');
+      debug('Skipping Ruby dev headers (not needed on macOS/Windows)');
     }
   }
 
@@ -118,7 +122,7 @@ export class NativeGemInstaller extends GemBaseInstaller {
   protected async installRuntimeDependencies(
     settings: IMetanormaSettings
   ): Promise<void> {
-    core.startGroup('Installing runtime dependencies');
+    startGroup('Installing runtime dependencies');
 
     switch (settings.platform) {
       case Platform.MacOS:
@@ -132,8 +136,8 @@ export class NativeGemInstaller extends GemBaseInstaller {
         break;
     }
 
-    core.info('✓ Runtime dependencies installed');
-    core.endGroup();
+    info('✓ Runtime dependencies installed');
+    endGroup();
   }
 
   /**
@@ -143,14 +147,14 @@ export class NativeGemInstaller extends GemBaseInstaller {
     // Check if Inkscape is installed
     const hasInkscape = await this.commandExists('inkscape');
     if (!hasInkscape) {
-      core.info('Installing Inkscape via Homebrew...');
+      info('Installing Inkscape via Homebrew...');
       await this.execCommand('brew', ['install', 'inkscape']);
     }
 
     // Check for Python (usually pre-installed on macOS)
     const hasPython = await this.commandExists('python3');
     if (!hasPython) {
-      core.warning('Python3 not found. Some Metanorma features may not work.');
+      warning('Python3 not found. Some Metanorma features may not work.');
     }
   }
 
@@ -162,13 +166,8 @@ export class NativeGemInstaller extends GemBaseInstaller {
     const hasApt = await this.commandExists('apt-get');
     if (hasApt) {
       const packages = ['git', 'inkscape', 'default-jre', 'fontconfig'];
-      core.info(`Installing packages via apt-get: ${packages.join(', ')}`);
-      await this.execCommand('sudo', [
-        'apt-get',
-        'install',
-        '-y',
-        ...packages
-      ]);
+      info(`Installing packages via apt-get: ${packages.join(', ')}`);
+      await this.execCommand('sudo', ['apt-get', 'install', '-y', ...packages]);
       return;
     }
 
@@ -176,7 +175,7 @@ export class NativeGemInstaller extends GemBaseInstaller {
     const hasYum = await this.commandExists('yum');
     if (hasYum) {
       const packages = ['git', 'inkscape', 'java-11-openjdk', 'fontconfig'];
-      core.info(`Installing packages via yum: ${packages.join(', ')}`);
+      info(`Installing packages via yum: ${packages.join(', ')}`);
       await this.execCommand('sudo', ['yum', 'install', '-y', ...packages]);
       return;
     }
@@ -185,7 +184,7 @@ export class NativeGemInstaller extends GemBaseInstaller {
     const hasDnf = await this.commandExists('dnf');
     if (hasDnf) {
       const packages = ['git', 'inkscape', 'java-11-openjdk', 'fontconfig'];
-      core.info(`Installing packages via dnf: ${packages.join(', ')}`);
+      info(`Installing packages via dnf: ${packages.join(', ')}`);
       await this.execCommand('sudo', ['dnf', 'install', '-y', ...packages]);
       return;
     }
@@ -194,12 +193,12 @@ export class NativeGemInstaller extends GemBaseInstaller {
     const hasApk = await this.commandExists('apk');
     if (hasApk) {
       const packages = ['git', 'inkscape', 'openjdk11-jre', 'fontconfig'];
-      core.info(`Installing packages via apk: ${packages.join(', ')}`);
+      info(`Installing packages via apk: ${packages.join(', ')}`);
       await this.execCommand('apk', ['add', ...packages]);
       return;
     }
 
-    core.warning(
+    warning(
       'Could not detect package manager. Please install Git, Inkscape, JRE, and fontconfig manually.'
     );
   }
@@ -211,7 +210,7 @@ export class NativeGemInstaller extends GemBaseInstaller {
     // Check for Chocolatey
     const hasChoco = await this.commandExists('choco');
     if (hasChoco) {
-      core.info('Installing dependencies via Chocolatey...');
+      info('Installing dependencies via Chocolatey...');
       await this.execCommand('choco', [
         'install',
         'inkscape',
@@ -219,9 +218,7 @@ export class NativeGemInstaller extends GemBaseInstaller {
         '--no-progress'
       ]);
     } else {
-      core.warning(
-        'Chocolatey not found. Please install Inkscape manually.'
-      );
+      warning('Chocolatey not found. Please install Inkscape manually.');
     }
   }
 
@@ -229,7 +226,7 @@ export class NativeGemInstaller extends GemBaseInstaller {
    * Install Metanorma via gem on native OS
    */
   async install(settings: IMetanormaSettings): Promise<void> {
-    core.startGroup('Installing Metanorma via gem (Native OS)');
+    startGroup('Installing Metanorma via gem (Native OS)');
 
     try {
       // Verify Ruby exists
@@ -258,9 +255,9 @@ export class NativeGemInstaller extends GemBaseInstaller {
       // Verify installation
       await this.verifyInstallation();
 
-      core.info('✓ Metanorma installed successfully via gem');
+      info('✓ Metanorma installed successfully via gem');
     } finally {
-      core.endGroup();
+      endGroup();
     }
   }
 
