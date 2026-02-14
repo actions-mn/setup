@@ -3969,12 +3969,15 @@ class BinaryProvider extends version_provider_1.VersionProvider {
     }
     /**
      * Detect current architecture.
+     * Maps Node.js arch to binary artifact architecture names.
      */
     detectArchitecture() {
         const arch = process.arch;
+        const platform = process.platform;
         switch (arch) {
             case 'arm64':
-                return 'arm64';
+                // macOS uses 'arm64', Linux uses 'aarch64' in packed-mn releases
+                return platform === 'darwin' ? 'arm64' : 'aarch64';
             case 'x64':
                 return 'x86_64';
             case 'arm':

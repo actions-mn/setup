@@ -7,6 +7,7 @@ import {ChocoInstaller} from '../src/installers/choco-installer';
 import {GemUbuntuInstaller} from '../src/installers/gem-ubuntu-installer';
 import {GemAlpineInstaller} from '../src/installers/gem-alpine-installer';
 import {NativeGemInstaller} from '../src/installers/native-gem-installer';
+import {BinaryInstaller} from '../src/installers/binary-installer';
 
 vi.mock('@actions/core');
 
@@ -21,7 +22,8 @@ vi.mock('../src/version', () => ({
   SnapProvider: class MockSnapProvider {},
   GemfileProvider: class MockGemfileProvider {},
   HomebrewProvider: class MockHomebrewProvider {},
-  ChocolateyProvider: class MockChocolateyProvider {}
+  ChocolateyProvider: class MockChocolateyProvider {},
+  BinaryProvider: class MockBinaryProvider {}
 }));
 
 describe('InstallerFactory', () => {
@@ -186,6 +188,54 @@ describe('InstallerFactory', () => {
       );
 
       expect(installer).toBeInstanceOf(BrewInstaller);
+    });
+
+    it('should create BinaryInstaller for macOS with binary method', () => {
+      const settings = {
+        platform: Platform.MacOS,
+        installationMethod: InstallationMethod.Binary,
+        containerInfo: undefined
+      } as any;
+
+      const installer = InstallerFactory.createInstaller(
+        Platform.MacOS,
+        InstallationMethod.Binary,
+        settings
+      );
+
+      expect(installer).toBeInstanceOf(BinaryInstaller);
+    });
+
+    it('should create BinaryInstaller for Linux with binary method', () => {
+      const settings = {
+        platform: Platform.Linux,
+        installationMethod: InstallationMethod.Binary,
+        containerInfo: undefined
+      } as any;
+
+      const installer = InstallerFactory.createInstaller(
+        Platform.Linux,
+        InstallationMethod.Binary,
+        settings
+      );
+
+      expect(installer).toBeInstanceOf(BinaryInstaller);
+    });
+
+    it('should create BinaryInstaller for Windows with binary method', () => {
+      const settings = {
+        platform: Platform.Windows,
+        installationMethod: InstallationMethod.Binary,
+        containerInfo: undefined
+      } as any;
+
+      const installer = InstallerFactory.createInstaller(
+        Platform.Windows,
+        InstallationMethod.Binary,
+        settings
+      );
+
+      expect(installer).toBeInstanceOf(BinaryInstaller);
     });
   });
 
