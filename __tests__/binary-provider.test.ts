@@ -12,10 +12,10 @@ vi.mock('@actions/core', () => ({
 
 // Sample mock data matching the metanorma/versions structure
 const mockBinaryData: MnenvAllVersions = {
-  gemfile: { count: 0, latest: '', versions: [] },
-  snap: { count: 0, latest: '', versions: [] },
-  homebrew: { count: 0, latest: '', versions: [] },
-  chocolatey: { count: 0, latest: '', versions: [] },
+  gemfile: {count: 0, latest: '', versions: []},
+  snap: {count: 0, latest: '', versions: []},
+  homebrew: {count: 0, latest: '', versions: []},
+  chocolatey: {count: 0, latest: '', versions: []},
   binary: {
     count: 3,
     latest: '1.14.4',
@@ -209,7 +209,12 @@ describe('BinaryProvider', () => {
     });
 
     it('should return artifact for linux x86_64 with musl variant', () => {
-      const artifact = provider.getArtifact('1.14.4', 'linux', 'x86_64', 'musl');
+      const artifact = provider.getArtifact(
+        '1.14.4',
+        'linux',
+        'x86_64',
+        'musl'
+      );
       expect(artifact).toBeDefined();
       expect(artifact?.name).toBe('linux');
       expect(artifact?.arch).toBe('x86_64');
@@ -243,81 +248,135 @@ describe('BinaryProvider', () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'darwin',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'arm64',
+        configurable: true
+      });
 
       const match = provider.getBestMatch('1.14.4');
       expect(match).toBeDefined();
       expect(match?.name).toBe('darwin');
       expect(match?.arch).toBe('arm64');
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
 
     it('should match linux x86_64', () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'linux',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'x64',
+        configurable: true
+      });
 
       const match = provider.getBestMatch('1.14.4');
       expect(match).toBeDefined();
       expect(match?.name).toBe('linux');
       expect(match?.arch).toBe('x86_64');
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
 
     it('should match linux aarch64 (ARM servers)', () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'linux',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'arm64',
+        configurable: true
+      });
 
       const match = provider.getBestMatch('1.14.4');
       expect(match).toBeDefined();
       expect(match?.name).toBe('linux');
       expect(match?.arch).toBe('aarch64');
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
 
     it('should match windows x86_64', () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'win32',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'x64',
+        configurable: true
+      });
 
       const match = provider.getBestMatch('1.14.4');
       expect(match).toBeDefined();
       expect(match?.name).toBe('windows');
       expect(match?.arch).toBe('x86_64');
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
   });
 
   describe('getDownloadUrl', () => {
     it('should return download URL for specific platform and arch', () => {
       const url = provider.getDownloadUrl('1.14.4', 'darwin', 'arm64');
-      expect(url).toBe('https://github.com/metanorma/packed-mn/releases/download/v1.14.4/metanorma-darwin-arm64.tgz');
+      expect(url).toBe(
+        'https://github.com/metanorma/packed-mn/releases/download/v1.14.4/metanorma-darwin-arm64.tgz'
+      );
     });
 
     it('should return download URL for linux x86_64', () => {
       const url = provider.getDownloadUrl('1.14.4', 'linux', 'x86_64');
-      expect(url).toBe('https://github.com/metanorma/packed-mn/releases/download/v1.14.4/metanorma-linux-x86_64.tgz');
+      expect(url).toBe(
+        'https://github.com/metanorma/packed-mn/releases/download/v1.14.4/metanorma-linux-x86_64.tgz'
+      );
     });
 
     it('should return download URL for windows x86_64', () => {
       const url = provider.getDownloadUrl('1.14.4', 'windows', 'x86_64');
-      expect(url).toBe('https://github.com/metanorma/packed-mn/releases/download/v1.14.4/metanorma-windows-x86_64.exe');
+      expect(url).toBe(
+        'https://github.com/metanorma/packed-mn/releases/download/v1.14.4/metanorma-windows-x86_64.exe'
+      );
     });
 
     it('should return undefined for unknown platform/arch', () => {

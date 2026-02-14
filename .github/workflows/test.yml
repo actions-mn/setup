@@ -45,9 +45,9 @@ jobs:
 
     - run: metanorma help
 
-  # Fetch version data from mnenv for use in package tests
+  # Fetch version data from metanorma/versions YAML files
   fetch-versions:
-    name: Fetch Versions from mnenv
+    name: Fetch Versions from YAML
     runs-on: ubuntu-latest
     outputs:
       snap-latest: ${{ steps.versions.outputs.snap-latest }}
@@ -57,35 +57,24 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
-    - uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.4'
-        bundler-cache: true
-
-    - name: Clone metanorma/versions
-      run: |
-        git clone --depth=1 https://github.com/metanorma/versions.git .mnenv-versions
-
-    - name: Install Ruby dependencies
-      run: |
-        cd .mnenv-versions
-        bundle install
-
     - name: Fetch version data
       id: versions
       run: |
-        cd .mnenv-versions
-        # Get JSON output from mnenv (use bundle exec ruby exe/mnenv when running from repo)
-        VERSIONS=$(bundle exec ruby exe/mnenv list-all --format=json)
-        echo "$VERSIONS" > versions.json
+        # Fetch YAML files directly from metanorma/versions repository
+        SNAP_YAML=$(curl -s https://raw.githubusercontent.com/metanorma/versions/main/data/snap/versions.yaml)
+        HOMEBREW_YAML=$(curl -s https://raw.githubusercontent.com/metanorma/versions/main/data/homebrew/versions.yaml)
+        CHOCOLATEY_YAML=$(curl -s https://raw.githubusercontent.com/metanorma/versions/main/data/chocolatey/versions.yaml)
+
+        # Install yq for YAML parsing
+        sudo snap install yq
 
         # Extract latest versions
-        SNAP_LATEST=$(jq -r '.snap.latest' versions.json)
-        CHOCO_LATEST=$(jq -r '.chocolatey.latest' versions.json)
-        HOMEBREW_LATEST=$(jq -r '.homebrew.latest' versions.json)
+        SNAP_LATEST=$(echo "$SNAP_YAML" | yq '.metadata.latest_version')
+        CHOCO_LATEST=$(echo "$CHOCOLATEY_YAML" | yq '.metadata.latest_version')
+        HOMEBREW_LATEST=$(echo "$HOMEBREW_YAML" | yq '.metadata.latest_version')
 
-        # Get a test version from snap (use a stable version that's not latest for testing)
-        SNAP_TEST=$(jq -r '.snap.versions[0].version' versions.json)
+        # Get a test version from snap (use the first available version for testing)
+        SNAP_TEST=$(echo "$SNAP_YAML" | yq '.versions[0].version')
 
         echo "snap-latest=$SNAP_LATEST" >> $GITHUB_OUTPUT
         echo "snap-test-version=$SNAP_TEST" >> $GITHUB_OUTPUT
@@ -96,12 +85,6 @@ jobs:
         echo "Snap test version: $SNAP_TEST"
         echo "Chocolatey latest: $CHOCO_LATEST"
         echo "Homebrew latest: $HOMEBREW_LATEST"
-
-    - name: Upload version data
-      uses: actions/upload-artifact@v4
-      with:
-        name: version-data
-        path: .mnenv-versions/versions.json
 
   # Native package manager tests - use versions from mnenv
   native-package-windows:
@@ -142,7 +125,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
-    # Test Snap revision-based installation using mnenv
+    # Test Snap version-based installation using version data from YAML
     - uses: ./
       with:
         installation-method: 'native'
@@ -150,7 +133,7 @@ jobs:
 
     - run: |
         metanorma --version
-        echo "✓ Metanorma installed via Snap with revision pinning (via mnenv, version ${{ needs.fetch-versions.outputs.snap-test-version }})"
+        echo "✓ Metanorma installed via Snap (version ${{ needs.fetch-versions.outputs.snap-test-version }})"
 
   # Gem-based installation tests
   docker-gem-ubuntu:

@@ -54,9 +54,18 @@ const createMockBinaryProvider = () => ({
     url: 'https://github.com/metanorma/packed-mn/releases/download/v1.14.4/metanorma-darwin-arm64.tgz',
     size: 343796411
   }),
-  getPlatforms: vi.fn().mockReturnValue([
-    { name: 'darwin', arch: 'arm64', format: 'tgz', filename: 'metanorma-darwin-arm64.tgz', url: 'https://example.com/metanorma-darwin-arm64.tgz', size: 1000000 }
-  ])
+  getPlatforms: vi
+    .fn()
+    .mockReturnValue([
+      {
+        name: 'darwin',
+        arch: 'arm64',
+        format: 'tgz',
+        filename: 'metanorma-darwin-arm64.tgz',
+        url: 'https://example.com/metanorma-darwin-arm64.tgz',
+        size: 1000000
+      }
+    ])
 });
 
 let mockBinaryProvider = createMockBinaryProvider();
@@ -96,7 +105,9 @@ describe('BinaryInstaller', () => {
     (tc.downloadTool as Mock).mockResolvedValue('/tmp/download/metanorma.tgz');
     (tc.extractTar as Mock).mockResolvedValue('/tmp/extracted');
     (tc.extractZip as Mock).mockResolvedValue('/tmp/extracted');
-    (tc.cacheFile as Mock).mockResolvedValue('/opt/hostedtoolcache/metanorma/1.14.4/arm64');
+    (tc.cacheFile as Mock).mockResolvedValue(
+      '/opt/hostedtoolcache/metanorma/1.14.4/arm64'
+    );
     (fs.existsSync as Mock).mockReturnValue(true);
     (fs.readdirSync as Mock).mockReturnValue([]);
     (exec.exec as Mock).mockResolvedValue(0);
@@ -111,8 +122,14 @@ describe('BinaryInstaller', () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'darwin',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'arm64',
+        configurable: true
+      });
 
       await installer.install(mockSettings);
 
@@ -120,16 +137,28 @@ describe('BinaryInstaller', () => {
       expect(tc.extractTar).toHaveBeenCalled();
       expect(tc.cacheFile).toHaveBeenCalled();
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
 
     it('should install Metanorma via binary for Linux x86_64', async () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'linux',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'x64',
+        configurable: true
+      });
 
       // Update mock for Linux
       mockBinaryProvider.getBestMatch.mockReturnValue({
@@ -146,16 +175,28 @@ describe('BinaryInstaller', () => {
       expect(tc.downloadTool).toHaveBeenCalled();
       expect(tc.extractTar).toHaveBeenCalled();
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
 
     it('should install Metanorma via binary for Windows x86_64', async () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'win32',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'x64',
+        configurable: true
+      });
 
       // Update mock for Windows
       mockBinaryProvider.getBestMatch.mockReturnValue({
@@ -171,32 +212,54 @@ describe('BinaryInstaller', () => {
 
       expect(tc.downloadTool).toHaveBeenCalled();
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
 
     it('should use cached binary if available', async () => {
-      (tc.find as Mock).mockReturnValue('/opt/hostedtoolcache/metanorma/1.14.4/arm64');
+      (tc.find as Mock).mockReturnValue(
+        '/opt/hostedtoolcache/metanorma/1.14.4/arm64'
+      );
 
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'darwin',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'arm64',
+        configurable: true
+      });
 
       await installer.install(mockSettings);
 
       // Should not download if cached
       expect(tc.downloadTool).not.toHaveBeenCalled();
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
 
     it('should throw error if version is not available', async () => {
       mockBinaryProvider.isAvailable.mockReturnValue(false);
 
-      await expect(installer.install(mockSettings)).rejects.toThrow('is not available as binary');
+      await expect(installer.install(mockSettings)).rejects.toThrow(
+        'is not available as binary'
+      );
     });
 
     it('should throw error if no binary for current platform', async () => {
@@ -204,7 +267,9 @@ describe('BinaryInstaller', () => {
       mockBinaryProvider.getBestMatch.mockReturnValue(undefined);
       mockBinaryProvider.getPlatforms.mockReturnValue([]);
 
-      await expect(installer.install(mockSettings)).rejects.toThrow('No binary available for current platform');
+      await expect(installer.install(mockSettings)).rejects.toThrow(
+        'No binary available for current platform'
+      );
     });
 
     it('should resolve "latest" to the latest version', async () => {
@@ -213,24 +278,42 @@ describe('BinaryInstaller', () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'darwin',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'arm64',
+        configurable: true
+      });
 
       await installer.install(mockSettings);
 
       // Should use getLatest() which returns '1.14.4'
       expect(mockBinaryProvider.getLatest).toHaveBeenCalled();
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
 
     it('should handle zip format for Windows', async () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'x64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'win32',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'x64',
+        configurable: true
+      });
 
       mockBinaryProvider.getBestMatch.mockReturnValue({
         name: 'windows',
@@ -245,8 +328,14 @@ describe('BinaryInstaller', () => {
 
       expect(tc.extractZip).toHaveBeenCalled();
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
   });
 
@@ -255,8 +344,14 @@ describe('BinaryInstaller', () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'darwin',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'arm64',
+        configurable: true
+      });
 
       await installer.install(mockSettings);
       await installer.cleanup();
@@ -264,19 +359,27 @@ describe('BinaryInstaller', () => {
       // Cleanup should be called without errors
       expect(true).toBe(true);
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
   });
 
   describe('error handling', () => {
     it('should throw error if version store fails to initialize', async () => {
       // Re-mock getVersionStore to return null
-      const { getVersionStore } = await import('../src/version');
+      const {getVersionStore} = await import('../src/version');
       (getVersionStore as Mock).mockResolvedValueOnce(null);
 
       const newInstaller = new BinaryInstaller();
-      await expect(newInstaller.install(mockSettings)).rejects.toThrow('Failed to fetch version data');
+      await expect(newInstaller.install(mockSettings)).rejects.toThrow(
+        'Failed to fetch version data'
+      );
     });
 
     it('should throw error if download fails', async () => {
@@ -285,13 +388,25 @@ describe('BinaryInstaller', () => {
       const originalPlatform = process.platform;
       const originalArch = process.arch;
 
-      Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
-      Object.defineProperty(process, 'arch', { value: 'arm64', configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: 'darwin',
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: 'arm64',
+        configurable: true
+      });
 
       await expect(installer.install(mockSettings)).rejects.toThrow();
 
-      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true });
-      Object.defineProperty(process, 'arch', { value: originalArch, configurable: true });
+      Object.defineProperty(process, 'platform', {
+        value: originalPlatform,
+        configurable: true
+      });
+      Object.defineProperty(process, 'arch', {
+        value: originalArch,
+        configurable: true
+      });
     });
   });
 });
