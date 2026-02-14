@@ -54,18 +54,16 @@ const createMockBinaryProvider = () => ({
     url: 'https://github.com/metanorma/packed-mn/releases/download/v1.14.4/metanorma-darwin-arm64.tgz',
     size: 343796411
   }),
-  getPlatforms: vi
-    .fn()
-    .mockReturnValue([
-      {
-        name: 'darwin',
-        arch: 'arm64',
-        format: 'tgz',
-        filename: 'metanorma-darwin-arm64.tgz',
-        url: 'https://example.com/metanorma-darwin-arm64.tgz',
-        size: 1000000
-      }
-    ])
+  getPlatforms: vi.fn().mockReturnValue([
+    {
+      name: 'darwin',
+      arch: 'arm64',
+      format: 'tgz',
+      filename: 'metanorma-darwin-arm64.tgz',
+      url: 'https://example.com/metanorma-darwin-arm64.tgz',
+      size: 1000000
+    }
+  ])
 });
 
 let mockBinaryProvider = createMockBinaryProvider();
