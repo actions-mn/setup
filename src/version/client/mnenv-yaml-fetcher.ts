@@ -1,6 +1,6 @@
-import * as core from '@actions/core';
+import {info, warning, debug} from '@actions/core';
 import * as https from 'https';
-import { MnenvAllVersions } from '../types/mnenv-types';
+import type {MnenvAllVersions} from '../types/mnenv-types.js';
 import * as yaml from 'js-yaml';
 
 /**
@@ -13,7 +13,8 @@ import * as yaml from 'js-yaml';
  * https://raw.githubusercontent.com/metanorma/versions/main/data/{platform}/versions.yaml
  */
 export class MnenvYamlFetcher {
-  private readonly RAW_BASE_URL = 'https://raw.githubusercontent.com/metanorma/versions/main/data';
+  private readonly RAW_BASE_URL =
+    'https://raw.githubusercontent.com/metanorma/versions/main/data';
   private readonly TIMEOUT_MS = 30 * 1000; // 30 seconds
 
   /**
@@ -22,28 +23,29 @@ export class MnenvYamlFetcher {
    */
   async fetchAllVersions(): Promise<MnenvAllVersions | null> {
     try {
-      core.info('Fetching version data from YAML files...');
+      info('Fetching version data from YAML files...');
 
-      const [snapData, gemfileData, homebrewData, chocolateyData, binaryData] = await Promise.all([
-        this.fetchYamlFile('snap/versions.yaml'),
-        this.fetchYamlFile('gemfile/versions.yaml'),
-        this.fetchYamlFile('homebrew/versions.yaml'),
-        this.fetchYamlFile('chocolatey/versions.yaml'),
-        this.fetchYamlFile('binary/versions.yaml'),
-      ]);
+      const [snapData, gemfileData, homebrewData, chocolateyData, binaryData] =
+        await Promise.all([
+          this.fetchYamlFile('snap/versions.yaml'),
+          this.fetchYamlFile('gemfile/versions.yaml'),
+          this.fetchYamlFile('homebrew/versions.yaml'),
+          this.fetchYamlFile('chocolatey/versions.yaml'),
+          this.fetchYamlFile('binary/versions.yaml')
+        ]);
 
       const result: MnenvAllVersions = {
         snap: this.transformSnapData(snapData),
         gemfile: this.transformGemfileData(gemfileData),
         homebrew: this.transformHomebrewData(homebrewData),
         chocolatey: this.transformChocolateyData(chocolateyData),
-        binary: this.transformBinaryData(binaryData),
+        binary: this.transformBinaryData(binaryData)
       };
 
       this.logSummary(result);
       return result;
     } catch (error) {
-      core.warning(`Failed to fetch YAML version data: ${error}`);
+      warning(`Failed to fetch YAML version data: ${error}`);
       return null;
     }
   }
@@ -53,7 +55,7 @@ export class MnenvYamlFetcher {
    */
   private async fetchYamlFile(path: string): Promise<any> {
     const url = `${this.RAW_BASE_URL}/${path}`;
-    core.debug(`Fetching: ${url}`);
+    debug(`Fetching: ${url}`);
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -61,7 +63,7 @@ export class MnenvYamlFetcher {
       }, this.TIMEOUT_MS);
 
       https
-        .get(url, (res) => {
+        .get(url, res => {
           clearTimeout(timeout);
 
           if (res.statusCode !== 200) {
@@ -70,7 +72,7 @@ export class MnenvYamlFetcher {
           }
 
           let data = '';
-          res.on('data', (chunk) => {
+          res.on('data', chunk => {
             data += chunk;
           });
 
@@ -83,7 +85,7 @@ export class MnenvYamlFetcher {
             }
           });
         })
-        .on('error', (error) => {
+        .on('error', error => {
           clearTimeout(timeout);
           reject(error);
         });
@@ -95,7 +97,7 @@ export class MnenvYamlFetcher {
    */
   private transformSnapData(data: any): any {
     if (!data || !data.versions) {
-      return { count: 0, latest: '', versions: [] };
+      return {count: 0, latest: '', versions: []};
     }
 
     return {
@@ -108,8 +110,8 @@ export class MnenvYamlFetcher {
         arch: v.arch,
         published_at: v.published_at || null,
         parsed_at: v.parsed_at || null,
-        display_name: v.display_name || v.version,
-      })),
+        display_name: v.display_name || v.version
+      }))
     };
   }
 
@@ -118,7 +120,7 @@ export class MnenvYamlFetcher {
    */
   private transformGemfileData(data: any): any {
     if (!data || !data.versions) {
-      return { count: 0, latest: '', versions: [] };
+      return {count: 0, latest: '', versions: []};
     }
 
     return {
@@ -129,8 +131,8 @@ export class MnenvYamlFetcher {
         gemfile_exists: v.gemfile_exists || true,
         published_at: v.published_at || null,
         parsed_at: v.parsed_at || null,
-        display_name: v.display_name || v.version,
-      })),
+        display_name: v.display_name || v.version
+      }))
     };
   }
 
@@ -139,7 +141,7 @@ export class MnenvYamlFetcher {
    */
   private transformHomebrewData(data: any): any {
     if (!data || !data.versions) {
-      return { count: 0, latest: '', versions: [] };
+      return {count: 0, latest: '', versions: []};
     }
 
     return {
@@ -151,8 +153,8 @@ export class MnenvYamlFetcher {
         commit_sha: v.commit_sha,
         published_at: v.published_at || null,
         parsed_at: v.parsed_at || null,
-        display_name: v.display_name || v.version,
-      })),
+        display_name: v.display_name || v.version
+      }))
     };
   }
 
@@ -161,7 +163,7 @@ export class MnenvYamlFetcher {
    */
   private transformChocolateyData(data: any): any {
     if (!data || !data.versions) {
-      return { count: 0, latest: '', versions: [] };
+      return {count: 0, latest: '', versions: []};
     }
 
     return {
@@ -173,8 +175,8 @@ export class MnenvYamlFetcher {
         is_pre_release: v.is_pre_release || false,
         published_at: v.published_at || null,
         parsed_at: v.parsed_at || null,
-        display_name: v.display_name || v.version,
-      })),
+        display_name: v.display_name || v.version
+      }))
     };
   }
 
@@ -183,7 +185,7 @@ export class MnenvYamlFetcher {
    */
   private transformBinaryData(data: any): any {
     if (!data || !data.versions) {
-      return { count: 0, latest: '', versions: [] };
+      return {count: 0, latest: '', versions: []};
     }
 
     return {
@@ -203,9 +205,9 @@ export class MnenvYamlFetcher {
           filename: p.filename,
           url: p.url,
           size: p.size,
-          variant: p.variant,
-        })),
-      })),
+          variant: p.variant
+        }))
+      }))
     };
   }
 
@@ -213,11 +215,19 @@ export class MnenvYamlFetcher {
    * Log summary of fetched version data.
    */
   private logSummary(data: MnenvAllVersions): void {
-    core.info('Version data loaded:');
-    core.info(`  Gemfile: ${data.gemfile.count} versions (latest: ${data.gemfile.latest})`);
-    core.info(`  Snap: ${data.snap.count} versions (latest: ${data.snap.latest})`);
-    core.info(`  Homebrew: ${data.homebrew.count} versions (latest: ${data.homebrew.latest})`);
-    core.info(`  Chocolatey: ${data.chocolatey.count} versions (latest: ${data.chocolatey.latest})`);
-    core.info(`  Binary: ${data.binary.count} versions (latest: ${data.binary.latest})`);
+    info('Version data loaded:');
+    info(
+      `  Gemfile: ${data.gemfile.count} versions (latest: ${data.gemfile.latest})`
+    );
+    info(`  Snap: ${data.snap.count} versions (latest: ${data.snap.latest})`);
+    info(
+      `  Homebrew: ${data.homebrew.count} versions (latest: ${data.homebrew.latest})`
+    );
+    info(
+      `  Chocolatey: ${data.chocolatey.count} versions (latest: ${data.chocolatey.latest})`
+    );
+    info(
+      `  Binary: ${data.binary.count} versions (latest: ${data.binary.latest})`
+    );
   }
 }

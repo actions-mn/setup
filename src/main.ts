@@ -1,13 +1,19 @@
-import * as core from '@actions/core';
-import * as coreCommand from '@actions/core/lib/command';
-import * as path from 'path';
-import * as exec from '@actions/exec';
-import {getInputs} from './input-helper';
-import {InstallerFactory} from './installers/installer-factory';
-import {IMetanormaSettings} from './metanorma-settings';
-import * as stateHelper from './state-helper';
-import {getVersionStore, VersionDataStore} from './version';
-import {IdempotencyManager} from './idempotency';
+import {info, debug, warning, setFailed, setOutput} from '@actions/core';
+import {exec} from '@actions/exec';
+import {getInputs} from './input-helper.js';
+import {InstallerFactory} from './installers/installer-factory.js';
+import type {IMetanormaSettings} from './metanorma-settings.js';
+import {
+  IsPost,
+  saveTempFile,
+  saveTempFiles,
+  clearTempFiles,
+  saveInstallPath,
+  getInstallPath
+} from './state-helper.js';
+import {getVersionStore} from './version/index.js';
+import type {VersionDataStore} from './version/index.js';
+import {IdempotencyManager} from './idempotency/index.js';
 
 async function run(): Promise<void> {
   let versionStore: VersionDataStore | null = null;
@@ -19,9 +25,9 @@ async function run(): Promise<void> {
     versionStore = await getVersionStore();
 
     if (versionStore) {
-      core.info('Version store initialized successfully');
+      info('Version store initialized successfully');
     } else {
-      core.info(
+      info(
         'Version store not available (mnenv CLI or prerequisites missing), using fallback behavior'
       );
     }
@@ -34,13 +40,13 @@ async function run(): Promise<void> {
       await idempotency.checkAndSkipIfAlreadyInstalled(settings);
 
     if (idempotencyResult.shouldSkip) {
-      core.info(`✓ ${idempotencyResult.details}`);
+      info(`✓ ${idempotencyResult.details}`);
       // Still set outputs for downstream actions
       setOutputs(settings, idempotencyResult.installedVersion);
       return;
     }
 
-    core.info(idempotencyResult.details || 'Proceeding with installation...');
+    info(idempotencyResult.details || 'Proceeding with installation...');
 
     // Create and use installer
     const installer = InstallerFactory.createInstaller(
@@ -59,9 +65,9 @@ async function run(): Promise<void> {
     // Set outputs if supported by the action
     setOutputs(settings, installedVersion);
 
-    core.info('✓ Metanorma installation completed successfully');
+    info('✓ Metanorma installation completed successfully');
   } catch (error) {
-    core.setFailed(`${(error as any)?.message ?? error}`);
+    setFailed(`${(error as Error)?.message ?? error}`);
   }
 }
 
@@ -80,7 +86,7 @@ async function cleanup(): Promise<void> {
     const idempotency = new IdempotencyManager();
     await idempotency.clearState();
   } catch (error) {
-    core.warning(`${(error as any)?.message ?? error}`);
+    warning(`${(error as Error)?.message ?? error}`);
   }
 }
 
@@ -88,7 +94,7 @@ async function getMetanormaVersion(): Promise<string | null> {
   try {
     let stdout = '';
 
-    await exec.exec('metanorma', ['--version'], {
+    await exec('metanorma', ['--version'], {
       silent: true,
       listeners: {
         stdout: (data: Buffer) => {
@@ -110,21 +116,21 @@ function setOutputs(
   installedVersion?: string | null
 ): void {
   // Set outputs for downstream actions
-  core.setOutput('version', installedVersion || settings.version || 'latest');
-  core.setOutput('platform', settings.platform);
-  core.setOutput('installation-method', settings.installationMethod);
-  core.setOutput('idempotent', String(!!installedVersion));
+  setOutput('version', installedVersion || settings.version || 'latest');
+  setOutput('platform', settings.platform);
+  setOutput('installation-method', settings.installationMethod);
+  setOutput('idempotent', String(!!installedVersion));
 }
 
 // Main entry point - use async IIFE to ensure proper awaiting
 (async (): Promise<void> => {
   try {
-    if (!stateHelper.IsPost) {
+    if (!IsPost) {
       await run();
     } else {
       await cleanup();
     }
   } catch (error) {
-    core.setFailed(`Unhandled error: ${(error as any)?.message ?? error}`);
+    setFailed(`Unhandled error: ${(error as Error)?.message ?? error}`);
   }
 })();

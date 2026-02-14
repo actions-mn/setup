@@ -1,8 +1,8 @@
-import { Platform } from './platform-types';
-import type { VersionInfo } from './platform-types';
+import type {Platform} from './platform-types.js';
+import type {VersionInfo} from './platform-types.js';
 
 /** Re-export VersionInfo for use in this module */
-export type { VersionInfo };
+export type {VersionInfo};
 
 /** Abstract interface for version providers */
 export interface IVersionProvider<T extends VersionInfo = VersionInfo> {
@@ -26,4 +26,4 @@ export interface IVersionProvider<T extends VersionInfo = VersionInfo> {
 }
 
 /** Re-export Platform for convenience */
-export type { Platform };
+export type {Platform};

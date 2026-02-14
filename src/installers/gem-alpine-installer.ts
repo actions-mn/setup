@@ -1,6 +1,6 @@
-import {IMetanormaSettings} from '../metanorma-settings';
-import {GemBaseInstaller} from './gem-base-installer';
-import * as core from '@actions/core';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
+import {GemBaseInstaller} from './gem-base-installer.js';
+import {startGroup, endGroup, info} from '@actions/core';
 
 /**
  * Alpine gem-based installer
@@ -27,7 +27,7 @@ export class GemAlpineInstaller extends GemBaseInstaller {
   protected async installRubyDevHeaders(
     _settings: IMetanormaSettings
   ): Promise<void> {
-    core.startGroup('Installing Ruby development headers');
+    startGroup('Installing Ruby development headers');
     const packages = [
       'ruby-dev',
       'musl-dev',
@@ -43,7 +43,7 @@ export class GemAlpineInstaller extends GemBaseInstaller {
       'sqlite-dev'
     ];
 
-    core.info(`Installing packages: ${packages.join(', ')}`);
+    info(`Installing packages: ${packages.join(', ')}`);
     const updateExitCode = await this.execCommand('apk', ['update']);
     if (updateExitCode !== 0) {
       throw new Error('apk update failed');
@@ -54,8 +54,8 @@ export class GemAlpineInstaller extends GemBaseInstaller {
       throw new Error('Failed to install Ruby development headers');
     }
 
-    core.info('✓ Ruby development headers installed');
-    core.endGroup();
+    info('✓ Ruby development headers installed');
+    endGroup();
   }
 
   /**
@@ -64,7 +64,7 @@ export class GemAlpineInstaller extends GemBaseInstaller {
   protected async installRuntimeDependencies(
     _settings: IMetanormaSettings
   ): Promise<void> {
-    core.startGroup('Installing runtime dependencies');
+    startGroup('Installing runtime dependencies');
     const packages = [
       'git',
       'inkscape',
@@ -73,21 +73,21 @@ export class GemAlpineInstaller extends GemBaseInstaller {
       'fontconfig'
     ];
 
-    core.info(`Installing packages: ${packages.join(', ')}`);
+    info(`Installing packages: ${packages.join(', ')}`);
     const exitCode = await this.execCommand('apk', ['add', ...packages]);
     if (exitCode !== 0) {
       throw new Error('Failed to install runtime dependencies');
     }
 
-    core.info('✓ Runtime dependencies installed');
-    core.endGroup();
+    info('✓ Runtime dependencies installed');
+    endGroup();
   }
 
   /**
    * Install Metanorma via gem
    */
   async install(settings: IMetanormaSettings): Promise<void> {
-    core.startGroup('Installing Metanorma via gem (Alpine)');
+    startGroup('Installing Metanorma via gem (Alpine)');
 
     try {
       // Verify Ruby exists
@@ -116,9 +116,9 @@ export class GemAlpineInstaller extends GemBaseInstaller {
       // Verify installation
       await this.verifyInstallation();
 
-      core.info('✓ Metanorma installed successfully via gem');
+      info('✓ Metanorma installed successfully via gem');
     } finally {
-      core.endGroup();
+      endGroup();
     }
   }
 

@@ -1,4 +1,9 @@
-import * as core from '@actions/core';
+import {
+  warning as coreWarning,
+  error as coreError,
+  info as coreInfo,
+  debug as coreDebug
+} from '@actions/core';
 
 /**
  * ANSI color codes for terminal output
@@ -90,7 +95,7 @@ export class Terminal {
       `${icon}WARNING: ${message}`,
       AnsiColor.FgYellow
     );
-    core.warning(coloredMessage);
+    coreWarning(coloredMessage);
     this.echo(coloredMessage);
   }
 
@@ -103,7 +108,7 @@ export class Terminal {
       `${icon}ERROR: ${message}`,
       AnsiColor.FgRed
     );
-    core.error(coloredMessage);
+    coreError(coloredMessage);
     this.echo(coloredMessage);
   }
 
@@ -116,7 +121,7 @@ export class Terminal {
       `${icon}${message}`,
       AnsiColor.FgGreen
     );
-    core.info(coloredMessage);
+    coreInfo(coloredMessage);
     this.echo(coloredMessage);
   }
 
@@ -126,7 +131,7 @@ export class Terminal {
   info(message: string): void {
     const icon = 'ℹ️ ';
     const coloredMessage = this.colorize(`${icon}${message}`, AnsiColor.FgBlue);
-    core.info(coloredMessage);
+    coreInfo(coloredMessage);
     this.echo(coloredMessage);
   }
 
@@ -135,7 +140,7 @@ export class Terminal {
    */
   debug(message: string): void {
     const coloredMessage = this.colorize(message, AnsiColor.Dim);
-    core.debug(coloredMessage);
+    coreDebug(coloredMessage);
   }
 
   /**

@@ -1,10 +1,10 @@
-import { VersionProvider } from './version-provider';
-import { MnenvAllVersions } from '../types/mnenv-types';
-import {
+import {VersionProvider} from './version-provider.js';
+import type {MnenvAllVersions} from '../types/mnenv-types.js';
+import type {
   SnapVersionInfo,
   Architecture,
-  SnapChannel,
-} from '../types/platform-types';
+  SnapChannel
+} from '../types/platform-types.js';
 
 /**
  * Provides snap version information with architecture and channel support.
@@ -31,14 +31,20 @@ export class SnapProvider extends VersionProvider<SnapVersionInfo> {
   /**
    * Get snap revision for specific version and architecture.
    */
-  getRevision(version: string, arch: Architecture = 'amd64'): number | undefined {
+  getRevision(
+    version: string,
+    arch: Architecture = 'amd64'
+  ): number | undefined {
     return this.byVersion.get(version)?.get(arch)?.revision;
   }
 
   /**
    * Get snap channel for specific version and architecture.
    */
-  getChannel(version: string, arch: Architecture = 'amd64'): SnapChannel | undefined {
+  getChannel(
+    version: string,
+    arch: Architecture = 'amd64'
+  ): SnapChannel | undefined {
     return this.byVersion.get(version)?.get(arch)?.channel;
   }
 
@@ -60,7 +66,9 @@ export class SnapProvider extends VersionProvider<SnapVersionInfo> {
 
 // Helper functions
 
-function transformSnapVersions(mnenvVersions: MnenvSnapVersion[]): SnapVersionInfo[] {
+function transformSnapVersions(
+  mnenvVersions: MnenvSnapVersion[]
+): SnapVersionInfo[] {
   return mnenvVersions.map(v => ({
     version: v.version,
     revision: v.revision,
@@ -87,7 +95,9 @@ function buildVersionMap(
   return map;
 }
 
-function buildChannelMap(versions: SnapVersionInfo[]): Map<SnapChannel, string> {
+function buildChannelMap(
+  versions: SnapVersionInfo[]
+): Map<SnapChannel, string> {
   const map = new Map<SnapChannel, string>();
 
   for (const v of versions) {

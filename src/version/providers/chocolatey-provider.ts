@@ -1,6 +1,6 @@
-import { VersionProvider } from './version-provider';
-import { MnenvAllVersions } from '../types/mnenv-types';
-import { ChocolateyVersionInfo } from '../types/platform-types';
+import {VersionProvider} from './version-provider.js';
+import type {MnenvAllVersions} from '../types/mnenv-types.js';
+import type {ChocolateyVersionInfo} from '../types/platform-types.js';
 
 /**
  * Provides Chocolatey version information with package name and pre-release flags.
@@ -34,7 +34,9 @@ export class ChocolateyProvider extends VersionProvider<ChocolateyVersionInfo> {
   }
 }
 
-function transformVersions(mnenvVersions: MnenvChocolateyVersion[]): ChocolateyVersionInfo[] {
+function transformVersions(
+  mnenvVersions: MnenvChocolateyVersion[]
+): ChocolateyVersionInfo[] {
   return mnenvVersions.map(v => ({
     version: v.version,
     packageName: v.package_name,
@@ -45,4 +47,5 @@ function transformVersions(mnenvVersions: MnenvChocolateyVersion[]): ChocolateyV
   }));
 }
 
-type MnenvChocolateyVersion = MnenvAllVersions['chocolatey']['versions'][number];
+type MnenvChocolateyVersion =
+  MnenvAllVersions['chocolatey']['versions'][number];

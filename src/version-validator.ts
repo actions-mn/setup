@@ -1,6 +1,6 @@
-import * as core from '@actions/core';
-import * as fs from 'fs';
-import * as path from 'path';
+import {warning, info} from '@actions/core';
+import {existsSync, readFileSync} from 'fs';
+import {join} from 'path';
 
 export interface AvailableVersions {
   snap: {
@@ -34,19 +34,19 @@ export function loadAvailableVersions(): AvailableVersions | null {
     return versionsCache;
   }
 
-  const versionsPath = path.join(__dirname, '../versions.json');
+  const versionsPath = join(__dirname, '../versions.json');
 
-  if (!fs.existsSync(versionsPath)) {
-    core.warning('versions.json not found - version validation disabled');
+  if (!existsSync(versionsPath)) {
+    warning('versions.json not found - version validation disabled');
     return null;
   }
 
   try {
-    const content = fs.readFileSync(versionsPath, 'utf-8');
+    const content = readFileSync(versionsPath, 'utf-8');
     versionsCache = JSON.parse(content) as AvailableVersions;
     return versionsCache;
   } catch (error) {
-    core.warning(`Failed to load versions.json: ${error}`);
+    warning(`Failed to load versions.json: ${error}`);
     return null;
   }
 }
@@ -72,7 +72,7 @@ export function isVersionAvailable(
 
   const source = versions[installMethod];
   if (!source) {
-    core.warning(`Unknown install method: ${installMethod}`);
+    warning(`Unknown install method: ${installMethod}`);
     return true;
   }
 
@@ -94,7 +94,7 @@ export function validateVersion(
   const versions = loadAvailableVersions();
 
   if (!versions) {
-    core.warning('Version validation not available - proceeding anyway');
+    warning('Version validation not available - proceeding anyway');
     return;
   }
 
@@ -117,7 +117,7 @@ export function validateVersion(
     );
   }
 
-  core.info(`✓ Version ${version} is available via ${installMethod}`);
+  info(`✓ Version ${version} is available via ${installMethod}`);
 }
 
 /**

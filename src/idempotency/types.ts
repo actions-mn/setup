@@ -1,4 +1,4 @@
-import {IMetanormaSettings} from '../metanorma-settings';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
 
 /**
  * State saved after successful installation
@@ -34,7 +34,11 @@ export interface IdempotencyResult {
   shouldSkip: boolean;
 
   /** Reason for the decision */
-  reason: 'already_installed' | 'configuration_changed' | 'not_installed' | 'error';
+  reason:
+    | 'already_installed'
+    | 'configuration_changed'
+    | 'not_installed'
+    | 'error';
 
   /** Human-readable details about the decision */
   details: string;

@@ -1,10 +1,10 @@
-import * as core from '@actions/core';
-import * as exec from '@actions/exec';
-import * as io from '@actions/io';
-import * as fs from 'fs';
-import * as path from 'path';
-import { homedir } from 'os';
-import { MnenvAllVersions } from '../types/mnenv-types';
+import {warning, info, debug, saveState, getState} from '@actions/core';
+import {exec} from '@actions/exec';
+import {rmRF} from '@actions/io';
+import {existsSync} from 'fs';
+import {join} from 'path';
+import {homedir} from 'os';
+import type {MnenvAllVersions} from '../types/mnenv-types.js';
 
 /**
  * MnenvClient handles interaction with the mnenv CLI.
@@ -42,7 +42,7 @@ export class MnenvClient {
     }
 
     if (this.initializationFailed) {
-      core.warning('MnenvClient previously failed initialization, skipping retry');
+      warning('MnenvClient previously failed initialization, skipping retry');
       return false;
     }
 
@@ -50,19 +50,19 @@ export class MnenvClient {
       // Use RUNNER_TEMP for temporary files to avoid polluting user's repository
       // RUNNER_TEMP is automatically cleaned up by GitHub Actions after the job completes
       const tempDir = process.env.RUNNER_TEMP || homedir();
-      this.repoDir = path.join(tempDir, '.mnenv-versions');
+      this.repoDir = join(tempDir, '.mnenv-versions');
 
       await this.cloneRepository();
       await this.installDependencies();
       this.isInitialized = true;
 
       // Save repo directory path to state for cleanup in post-action
-      core.saveState('mnenv-repo-dir', this.repoDir);
+      saveState('mnenv-repo-dir', this.repoDir);
 
       return true;
     } catch (error) {
       this.initializationFailed = true;
-      core.warning(`MnenvClient initialization failed: ${error}`);
+      warning(`MnenvClient initialization failed: ${error}`);
       return false;
     }
   }
@@ -73,16 +73,16 @@ export class MnenvClient {
    */
   async fetchAllVersions(): Promise<MnenvAllVersions | null> {
     if (!this.isInitialized) {
-      core.warning('MnenvClient not initialized, cannot fetch versions');
+      warning('MnenvClient not initialized, cannot fetch versions');
       return null;
     }
 
     try {
-      core.info('Fetching version data from mnenv CLI...');
+      info('Fetching version data from mnenv CLI...');
 
       const output = await this.executeMnenv(['list-all', '--format', 'json']);
       if (!output || output.trim().length === 0) {
-        core.warning('mnenv CLI returned empty output');
+        warning('mnenv CLI returned empty output');
         return null;
       }
 
@@ -90,14 +90,14 @@ export class MnenvClient {
 
       // Validate data structure
       if (!this.validateMnenvData(data)) {
-        core.warning('mnenv CLI returned invalid data structure');
+        warning('mnenv CLI returned invalid data structure');
         return null;
       }
 
       this.logSummary(data);
       return data;
     } catch (error) {
-      core.warning(`Failed to fetch versions from mnenv: ${error}`);
+      warning(`Failed to fetch versions from mnenv: ${error}`);
       return null;
     }
   }
@@ -108,7 +108,7 @@ export class MnenvClient {
    */
   async cleanup(): Promise<void> {
     // Also check state file for repo dir from previous run
-    const stateRepoDir = core.getState('mnenv-repo-dir');
+    const stateRepoDir = getState('mnenv-repo-dir');
     const dirsToClean = new Set<string>();
 
     if (this.repoDir) {
@@ -119,19 +119,19 @@ export class MnenvClient {
     }
 
     for (const dir of dirsToClean) {
-      if (fs.existsSync(dir)) {
-        core.info(`Cleaning up ${dir}...`);
+      if (existsSync(dir)) {
+        info(`Cleaning up ${dir}...`);
         try {
-          await io.rmRF(dir);
-          core.info(`Successfully cleaned up ${dir}`);
+          await rmRF(dir);
+          info(`Successfully cleaned up ${dir}`);
         } catch (error) {
-          core.warning(`Failed to cleanup ${dir}: ${error}`);
+          warning(`Failed to cleanup ${dir}: ${error}`);
         }
       }
     }
 
     // Clear state
-    core.saveState('mnenv-repo-dir', '');
+    saveState('mnenv-repo-dir', '');
   }
 
   /**
@@ -141,12 +141,12 @@ export class MnenvClient {
     const commands = ['git', 'bundle', 'ruby'];
 
     for (const cmd of commands) {
-      const exitCode = await exec.exec(cmd, ['--version'], {
+      const exitCode = await exec(cmd, ['--version'], {
         silent: true,
         ignoreReturnCode: true
       });
       if (exitCode !== 0) {
-        core.warning(`Prerequisite check failed: ${cmd} is not available`);
+        warning(`Prerequisite check failed: ${cmd} is not available`);
         return false;
       }
     }
@@ -160,12 +160,12 @@ export class MnenvClient {
     }
 
     // Remove existing directory if present
-    if (fs.existsSync(this.repoDir)) {
-      core.debug(`Removing existing directory: ${this.repoDir}`);
-      await io.rmRF(this.repoDir);
+    if (existsSync(this.repoDir)) {
+      debug(`Removing existing directory: ${this.repoDir}`);
+      await rmRF(this.repoDir);
     }
 
-    core.info(`Cloning metanorma/versions to ${this.repoDir}...`);
+    info(`Cloning metanorma/versions to ${this.repoDir}...`);
 
     const cloneArgs = [
       'clone',
@@ -175,12 +175,12 @@ export class MnenvClient {
       this.repoDir
     ];
 
-    const exitCode = await exec.exec('git', cloneArgs);
+    const exitCode = await exec('git', cloneArgs);
     if (exitCode !== 0) {
       throw new Error(`git clone failed with exit code ${exitCode}`);
     }
 
-    core.info('Repository cloned successfully');
+    info('Repository cloned successfully');
   }
 
   private async installDependencies(): Promise<void> {
@@ -188,16 +188,16 @@ export class MnenvClient {
       throw new Error('Repository directory not set');
     }
 
-    core.info('Installing Ruby dependencies...');
+    info('Installing Ruby dependencies...');
 
-    const options = { cwd: this.repoDir };
-    const exitCode = await exec.exec('bundle', ['install'], options);
+    const options = {cwd: this.repoDir};
+    const exitCode = await exec('bundle', ['install'], options);
 
     if (exitCode !== 0) {
       throw new Error(`bundle install failed with exit code ${exitCode}`);
     }
 
-    core.info('Dependencies installed');
+    info('Dependencies installed');
   }
 
   private async executeMnenv(args: string[]): Promise<string> {
@@ -212,12 +212,20 @@ export class MnenvClient {
       cwd: this.repoDir,
       silent: true,
       listeners: {
-        stdout: (data: Buffer) => { output += data.toString(); },
-        stderr: (data: Buffer) => { error += data.toString(); }
+        stdout: (data: Buffer) => {
+          output += data.toString();
+        },
+        stderr: (data: Buffer) => {
+          error += data.toString();
+        }
       }
     };
 
-    const exitCode = await exec.exec('bundle', ['exec', 'ruby', 'exe/mnenv', ...args], options);
+    const exitCode = await exec(
+      'bundle',
+      ['exec', 'ruby', 'exe/mnenv', ...args],
+      options
+    );
 
     if (exitCode !== 0) {
       throw new Error(`mnenv failed with exit code ${exitCode}: ${error}`);
@@ -253,10 +261,16 @@ export class MnenvClient {
   }
 
   private logSummary(data: MnenvAllVersions): void {
-    core.info('Version data loaded:');
-    core.info(`  Gemfile: ${data.gemfile.count} versions (latest: ${data.gemfile.latest})`);
-    core.info(`  Snap: ${data.snap.count} versions (latest: ${data.snap.latest})`);
-    core.info(`  Homebrew: ${data.homebrew.count} versions (latest: ${data.homebrew.latest})`);
-    core.info(`  Chocolatey: ${data.chocolatey.count} versions (latest: ${data.chocolatey.latest})`);
+    info('Version data loaded:');
+    info(
+      `  Gemfile: ${data.gemfile.count} versions (latest: ${data.gemfile.latest})`
+    );
+    info(`  Snap: ${data.snap.count} versions (latest: ${data.snap.latest})`);
+    info(
+      `  Homebrew: ${data.homebrew.count} versions (latest: ${data.homebrew.latest})`
+    );
+    info(
+      `  Chocolatey: ${data.chocolatey.count} versions (latest: ${data.chocolatey.latest})`
+    );
   }
 }

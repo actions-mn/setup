@@ -1,6 +1,6 @@
-import { VersionProvider } from './version-provider';
-import { MnenvAllVersions } from '../types/mnenv-types';
-import { GemfileVersionInfo } from '../types/platform-types';
+import {VersionProvider} from './version-provider.js';
+import type {MnenvAllVersions} from '../types/mnenv-types.js';
+import type {GemfileVersionInfo} from '../types/platform-types.js';
 
 /**
  * Provides Gemfile version information for Docker-based installations.
@@ -27,7 +27,9 @@ export class GemfileProvider extends VersionProvider<GemfileVersionInfo> {
   }
 }
 
-function transformVersions(mnenvVersions: MnenvGemfileVersion[]): GemfileVersionInfo[] {
+function transformVersions(
+  mnenvVersions: MnenvGemfileVersion[]
+): GemfileVersionInfo[] {
   return mnenvVersions.map(v => ({
     version: v.version,
     gemfileExists: v.gemfile_exists,

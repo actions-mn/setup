@@ -1,11 +1,11 @@
-import * as core from '@actions/core';
+import {getInput, debug, info} from '@actions/core';
 import {
   detectPlatform,
   Platform,
   InstallationMethod
-} from './platform-detector';
-import {IMetanormaSettings} from './metanorma-settings';
-import {getInstallationMethod, detectContainer} from './container-detector';
+} from './platform-detector.js';
+import type {IMetanormaSettings} from './metanorma-settings.js';
+import {getInstallationMethod, detectContainer} from './container-detector.js';
 
 /**
  * Get and validate all inputs
@@ -14,13 +14,13 @@ export async function getInputs(): Promise<IMetanormaSettings> {
   const result = {} as IMetanormaSettings;
 
   // Version input
-  const versionInput = core.getInput('version');
+  const versionInput = getInput('version');
   result.version = versionInput || null;
-  core.debug(`version = '${result.version}'`);
+  debug(`version = '${result.version}'`);
 
   // Snap channel input
-  result.snapChannel = core.getInput('snap-channel') || 'stable';
-  core.debug(`snapChannel = '${result.snapChannel}'`);
+  result.snapChannel = getInput('snap-channel') || 'stable';
+  debug(`snapChannel = '${result.snapChannel}'`);
 
   // Validate snap channel
   const validChannels = ['stable', 'edge', 'beta', 'candidate'];
@@ -33,61 +33,60 @@ export async function getInputs(): Promise<IMetanormaSettings> {
   }
 
   // Chocolatey prerelease input
-  const chocoPrereleaseInput = core.getInput('choco-prerelase');
+  const chocoPrereleaseInput = getInput('choco-prerelase');
   result.chocoPrerelease =
     (chocoPrereleaseInput || 'false').toUpperCase() === 'TRUE';
-  core.debug(`chocoPrerelease = ${result.chocoPrerelease}`);
+  debug(`chocoPrerelease = ${result.chocoPrerelease}`);
 
   // Platform detection
   result.platform = detectPlatform();
-  core.debug(`platform = '${result.platform}'`);
+  debug(`platform = '${result.platform}'`);
 
   // Installation path
   result.installPath = process.env['GITHUB_WORKSPACE'] || '/';
-  core.debug(`installPath = '${result.installPath}'`);
+  debug(`installPath = '${result.installPath}'`);
 
   // Installation method input
-  const installationMethodInput =
-    core.getInput('installation-method') || 'auto';
+  const installationMethodInput = getInput('installation-method') || 'auto';
   const {method: detectedMethod, reason} = await getInstallationMethod(
     installationMethodInput
   );
   result.installationMethod = detectedMethod as InstallationMethod;
-  core.info(`Installation method: ${result.installationMethod} (${reason})`);
+  info(`Installation method: ${result.installationMethod} (${reason})`);
 
   // Bundler version (for gem-based installation)
-  const bundlerVersionInput = core.getInput('bundler-version');
+  const bundlerVersionInput = getInput('bundler-version');
   result.bundlerVersion = bundlerVersionInput || '2.6.5';
-  core.debug(`bundlerVersion = '${result.bundlerVersion}'`);
+  debug(`bundlerVersion = '${result.bundlerVersion}'`);
 
   // Custom Gemfile (for gem-based installation)
-  const gemfileInput = core.getInput('gemfile');
+  const gemfileInput = getInput('gemfile');
   result.gemfile = gemfileInput || undefined;
   if (result.gemfile) {
-    core.debug(`gemfile = '${result.gemfile}'`);
+    debug(`gemfile = '${result.gemfile}'`);
   }
 
   // Fontist update (for gem-based installation)
-  const fontistUpdateInput = core.getInput('fontist-update');
+  const fontistUpdateInput = getInput('fontist-update');
   result.fontistUpdate =
     (fontistUpdateInput || 'true').toUpperCase() === 'TRUE';
-  core.debug(`fontistUpdate = ${result.fontistUpdate}`);
+  debug(`fontistUpdate = ${result.fontistUpdate}`);
 
   // Bundle update (for gem-based installation)
-  const bundleUpdateInput = core.getInput('bundle-update');
+  const bundleUpdateInput = getInput('bundle-update');
   result.bundleUpdate = (bundleUpdateInput || 'false').toUpperCase() === 'TRUE';
-  core.debug(`bundleUpdate = ${result.bundleUpdate}`);
+  debug(`bundleUpdate = ${result.bundleUpdate}`);
 
   // Use pre-built locks (for gem-based installation)
-  const usePrebuiltLocksInput = core.getInput('use-prebuilt-locks');
+  const usePrebuiltLocksInput = getInput('use-prebuilt-locks');
   result.usePrebuiltLocks =
     (usePrebuiltLocksInput || 'true').toUpperCase() !== 'FALSE';
-  core.debug(`usePrebuiltLocks = ${result.usePrebuiltLocks}`);
+  debug(`usePrebuiltLocks = ${result.usePrebuiltLocks}`);
 
   // Container detection (Linux only)
   if (result.platform === Platform.Linux) {
     result.containerInfo = await detectContainer();
-    core.debug(`containerInfo = ${JSON.stringify(result.containerInfo)}`);
+    debug(`containerInfo = ${JSON.stringify(result.containerInfo)}`);
   }
 
   return result;

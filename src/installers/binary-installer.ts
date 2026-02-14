@@ -1,13 +1,26 @@
-import {IMetanormaSettings} from '../metanorma-settings';
-import {BaseInstaller} from './base-installer';
-import * as core from '@actions/core';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
+import {BaseInstaller} from './base-installer.js';
+import {
+  startGroup,
+  endGroup,
+  info,
+  debug,
+  warning,
+  addPath
+} from '@actions/core';
 import * as tc from '@actions/tool-cache';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as exec from '@actions/exec';
-import {Platform} from '../platform-detector';
-import {getVersionStore} from '../version';
-import type {BinaryProvider, BinaryPlatformArtifact} from '../version';
+import {
+  existsSync,
+  mkdirSync,
+  copyFileSync,
+  chmodSync,
+  readdirSync,
+  rmSync
+} from 'fs';
+import {join} from 'path';
+import {Platform} from '../platform-detector.js';
+import {getVersionStore} from '../version/index.js';
+import type {BinaryProvider, BinaryPlatformArtifact} from '../version/index.js';
 
 /**
  * Binary installer for packed-mn releases
@@ -23,7 +36,7 @@ export class BinaryInstaller extends BaseInstaller {
    * Install Metanorma using packed-mn binary
    */
   async install(settings: IMetanormaSettings): Promise<void> {
-    core.startGroup('Installing Metanorma via binary (packed-mn)');
+    startGroup('Installing Metanorma via binary (packed-mn)');
 
     try {
       const version = settings.version || 'latest';
@@ -37,9 +50,8 @@ export class BinaryInstaller extends BaseInstaller {
       const binaryProvider = store.getBinaryProvider();
 
       // Resolve version
-      const resolvedVersion = version === 'latest'
-        ? binaryProvider.getLatest()
-        : version;
+      const resolvedVersion =
+        version === 'latest' ? binaryProvider.getLatest() : version;
 
       if (!resolvedVersion) {
         throw new Error(`Could not resolve version: ${version}`);
@@ -47,14 +59,17 @@ export class BinaryInstaller extends BaseInstaller {
 
       // Check if version is available
       if (!binaryProvider.isAvailable(resolvedVersion)) {
-        const available = binaryProvider.getAvailableVersions().slice(-10).join(', ');
+        const available = binaryProvider
+          .getAvailableVersions()
+          .slice(-10)
+          .join(', ');
         throw new Error(
           `Version ${resolvedVersion} is not available as binary.\n` +
-          `Available versions (last 10): ${available}`
+            `Available versions (last 10): ${available}`
         );
       }
 
-      core.info(`Installing Metanorma ${resolvedVersion} via packed-mn binary`);
+      info(`Installing Metanorma ${resolvedVersion} via packed-mn binary`);
 
       // Get the best matching artifact for current platform
       const artifact = binaryProvider.getBestMatch(resolvedVersion);
@@ -62,19 +77,21 @@ export class BinaryInstaller extends BaseInstaller {
         const platforms = binaryProvider.getPlatforms(resolvedVersion);
         throw new Error(
           `No binary available for current platform (${process.platform}/${process.arch}).\n` +
-          `Available platforms: ${platforms.map(p => `${p.name}/${p.arch}`).join(', ')}`
+            `Available platforms: ${platforms.map(p => `${p.name}/${p.arch}`).join(', ')}`
         );
       }
 
-      core.info(`Selected binary: ${artifact.filename} (${formatSize(artifact.size)})`);
+      info(
+        `Selected binary: ${artifact.filename} (${formatSize(artifact.size)})`
+      );
 
       // Check if already cached
       const toolPath = tc.find('metanorma', resolvedVersion, artifact.arch);
       if (toolPath) {
-        core.info(`Found cached binary at: ${toolPath}`);
+        info(`Found cached binary at: ${toolPath}`);
         await this.addToPath(toolPath);
         await this.verifyInstallation();
-        core.info('Metanorma installed successfully from cache');
+        info('Metanorma installed successfully from cache');
         return;
       }
 
@@ -94,9 +111,9 @@ export class BinaryInstaller extends BaseInstaller {
       // Verify installation
       await this.verifyInstallation();
 
-      core.info(`Metanorma ${resolvedVersion} installed successfully via binary`);
+      info(`Metanorma ${resolvedVersion} installed successfully via binary`);
     } finally {
-      core.endGroup();
+      endGroup();
     }
   }
 
@@ -107,12 +124,12 @@ export class BinaryInstaller extends BaseInstaller {
     artifact: BinaryPlatformArtifact,
     version: string
   ): Promise<string> {
-    core.info(`Downloading from: ${artifact.url}`);
+    info(`Downloading from: ${artifact.url}`);
 
     const downloadPath = await tc.downloadTool(artifact.url);
     this.tempFiles.push(downloadPath);
 
-    core.debug(`Downloaded to: ${downloadPath}`);
+    debug(`Downloaded to: ${downloadPath}`);
     return downloadPath;
   }
 
@@ -131,10 +148,13 @@ export class BinaryInstaller extends BaseInstaller {
       // Windows uses zip or exe
       if (artifact.format === 'exe') {
         // exe is a self-extracting archive or direct binary
-        const targetDir = path.join(process.env.RUNNER_TEMP || '/tmp', 'metanorma-binary');
-        fs.mkdirSync(targetDir, {recursive: true});
-        const targetPath = path.join(targetDir, 'metanorma.exe');
-        fs.copyFileSync(downloadPath, targetPath);
+        const targetDir = join(
+          process.env.RUNNER_TEMP || '/tmp',
+          'metanorma-binary'
+        );
+        mkdirSync(targetDir, {recursive: true});
+        const targetPath = join(targetDir, 'metanorma.exe');
+        copyFileSync(downloadPath, targetPath);
         extractedPath = targetDir;
       } else {
         extractedPath = await tc.extractZip(downloadPath);
@@ -145,20 +165,21 @@ export class BinaryInstaller extends BaseInstaller {
     }
 
     this.tempFiles.push(extractedPath);
-    core.debug(`Extracted to: ${extractedPath}`);
+    debug(`Extracted to: ${extractedPath}`);
 
     // Find the binary in the extracted directory
-    const binaryName = process.platform === 'win32' ? 'metanorma.exe' : 'metanorma';
-    let binaryPath = path.join(extractedPath, binaryName);
+    const binaryName =
+      process.platform === 'win32' ? 'metanorma.exe' : 'metanorma';
+    let binaryPath = join(extractedPath, binaryName);
 
     // Check if binary exists at root level
-    if (!fs.existsSync(binaryPath)) {
+    if (!existsSync(binaryPath)) {
       // Look for it in subdirectories
-      const entries = fs.readdirSync(extractedPath, {withFileTypes: true});
+      const entries = readdirSync(extractedPath, {withFileTypes: true});
       for (const entry of entries) {
         if (entry.isDirectory()) {
-          const subBinaryPath = path.join(extractedPath, entry.name, binaryName);
-          if (fs.existsSync(subBinaryPath)) {
+          const subBinaryPath = join(extractedPath, entry.name, binaryName);
+          if (existsSync(subBinaryPath)) {
             binaryPath = subBinaryPath;
             break;
           }
@@ -166,13 +187,13 @@ export class BinaryInstaller extends BaseInstaller {
       }
     }
 
-    if (!fs.existsSync(binaryPath)) {
+    if (!existsSync(binaryPath)) {
       throw new Error(`Binary not found after extraction: ${binaryPath}`);
     }
 
     // Make executable (Unix)
     if (process.platform !== 'win32') {
-      fs.chmodSync(binaryPath, 0o755);
+      chmodSync(binaryPath, 0o755);
     }
 
     // Cache the tool
@@ -184,7 +205,7 @@ export class BinaryInstaller extends BaseInstaller {
       artifact.arch
     );
 
-    core.debug(`Cached to: ${cachedPath}`);
+    debug(`Cached to: ${cachedPath}`);
     return cachedPath;
   }
 
@@ -192,17 +213,18 @@ export class BinaryInstaller extends BaseInstaller {
    * Add binary directory to PATH
    */
   private async addToPath(toolPath: string): Promise<void> {
-    core.addPath(toolPath);
-    core.info(`Added to PATH: ${toolPath}`);
+    addPath(toolPath);
+    info(`Added to PATH: ${toolPath}`);
   }
 
   /**
    * Verify Metanorma installation
    */
   private async verifyInstallation(): Promise<void> {
-    core.info('Verifying installation...');
+    info('Verifying installation...');
 
-    const binaryName = process.platform === 'win32' ? 'metanorma.exe' : 'metanorma';
+    const binaryName =
+      process.platform === 'win32' ? 'metanorma.exe' : 'metanorma';
     const exitCode = await this.execCommand(binaryName, ['--version'], {
       silent: false,
       ignoreReturnCode: true
@@ -212,7 +234,7 @@ export class BinaryInstaller extends BaseInstaller {
       throw new Error('Metanorma installation verification failed');
     }
 
-    core.info('Installation verified successfully');
+    info('Installation verified successfully');
   }
 
   /**
@@ -221,12 +243,12 @@ export class BinaryInstaller extends BaseInstaller {
   async cleanup(): Promise<void> {
     for (const tempFile of this.tempFiles) {
       try {
-        if (fs.existsSync(tempFile)) {
-          fs.rmSync(tempFile, {recursive: true, force: true});
-          core.debug(`Cleaned up: ${tempFile}`);
+        if (existsSync(tempFile)) {
+          rmSync(tempFile, {recursive: true, force: true});
+          debug(`Cleaned up: ${tempFile}`);
         }
       } catch (error) {
-        core.warning(`Failed to cleanup ${tempFile}: ${error}`);
+        warning(`Failed to cleanup ${tempFile}: ${error}`);
       }
     }
     this.tempFiles = [];

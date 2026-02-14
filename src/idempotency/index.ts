@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { IdempotencyManager } from './idempotency';
+ * import { IdempotencyManager } from './idempotency/index.js';
  *
  * const idempotency = new IdempotencyManager();
  * const result = await idempotency.checkAndSkipIfAlreadyInstalled(settings);
@@ -18,5 +18,5 @@
  * ```
  */
 
-export {IdempotencyManager} from './idempotency-manager';
-export * from './types';
+export {IdempotencyManager} from './idempotency-manager.js';
+export * from './types.js';

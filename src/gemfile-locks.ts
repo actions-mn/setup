@@ -1,6 +1,6 @@
 import * as https from 'https';
 import * as http from 'http';
-import * as core from '@actions/core';
+import {debug} from '@actions/core';
 
 /**
  * Version entry from the metanorma/versions gemfile versions.yaml
@@ -143,7 +143,7 @@ export class GemfileLocksFetcher {
 
       return result;
     } catch (error) {
-      core.debug(`Failed to parse YAML: ${error}`);
+      debug(`Failed to parse YAML: ${error}`);
       return null;
     }
   }
@@ -157,7 +157,7 @@ export class GemfileLocksFetcher {
 
       const request = protocol.get(url, res => {
         if (res.statusCode !== 200) {
-          core.debug(`Fetch failed with status ${res.statusCode} for ${url}`);
+          debug(`Fetch failed with status ${res.statusCode} for ${url}`);
           resolve(null);
           return;
         }
@@ -173,13 +173,13 @@ export class GemfileLocksFetcher {
       });
 
       request.on('error', error => {
-        core.debug(`Fetch error for ${url}: ${error.message}`);
+        debug(`Fetch error for ${url}: ${error.message}`);
         resolve(null);
       });
 
       request.setTimeout(10000, () => {
         request.destroy();
-        core.debug(`Fetch timeout for ${url}`);
+        debug(`Fetch timeout for ${url}`);
         resolve(null);
       });
     });
@@ -194,7 +194,7 @@ export class GemfileLocksFetcher {
       return this.indexCache;
     }
 
-    core.debug(`Fetching index from ${this.indexUrl}`);
+    debug(`Fetching index from ${this.indexUrl}`);
     const content = await this.fetchUrl(this.indexUrl);
 
     if (!content) {
@@ -214,9 +214,7 @@ export class GemfileLocksFetcher {
     // Try to fetch the Gemfile directly to verify availability
     const gemfile = await this.fetchGemfile(version);
     const isAvailable = gemfile !== null;
-    core.debug(
-      `Version ${version} available in pre-built locks: ${isAvailable}`
-    );
+    debug(`Version ${version} available in pre-built locks: ${isAvailable}`);
     return isAvailable;
   }
 
@@ -225,7 +223,7 @@ export class GemfileLocksFetcher {
    */
   async fetchGemfileLock(version: string): Promise<string | null> {
     const url = `${this.baseUrl}/v${version}/Gemfile.lock.archived`;
-    core.debug(`Fetching Gemfile.lock for version ${version} from ${url}`);
+    debug(`Fetching Gemfile.lock for version ${version} from ${url}`);
     return this.fetchUrl(url);
   }
 
@@ -234,7 +232,7 @@ export class GemfileLocksFetcher {
    */
   async fetchGemfile(version: string): Promise<string | null> {
     const url = `${this.baseUrl}/v${version}/Gemfile`;
-    core.debug(`Fetching Gemfile for version ${version} from ${url}`);
+    debug(`Fetching Gemfile for version ${version} from ${url}`);
     return this.fetchUrl(url);
   }
 

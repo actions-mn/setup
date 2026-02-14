@@ -1,12 +1,12 @@
-import * as core from '@actions/core';
-import { MnenvYamlFetcher } from '../client/mnenv-yaml-fetcher';
-import { MnenvAllVersions } from '../types/mnenv-types';
-import { SnapProvider } from '../providers/snap-provider';
-import { GemfileProvider } from '../providers/gemfile-provider';
-import { HomebrewProvider } from '../providers/homebrew-provider';
-import { ChocolateyProvider } from '../providers/chocolatey-provider';
-import { BinaryProvider } from '../providers/binary-provider';
-import { IVersionProvider, Platform } from '../types/provider-types';
+import {warning, info} from '@actions/core';
+import {MnenvYamlFetcher} from '../client/mnenv-yaml-fetcher.js';
+import type {MnenvAllVersions} from '../types/mnenv-types.js';
+import {SnapProvider} from '../providers/snap-provider.js';
+import {GemfileProvider} from '../providers/gemfile-provider.js';
+import {HomebrewProvider} from '../providers/homebrew-provider.js';
+import {ChocolateyProvider} from '../providers/chocolatey-provider.js';
+import {BinaryProvider} from '../providers/binary-provider.js';
+import type {IVersionProvider, Platform} from '../types/provider-types.js';
 
 /**
  * VersionDataStore manages version data for all platforms.
@@ -57,16 +57,18 @@ export class VersionDataStore {
     }
 
     if (this.initializationFailed) {
-      core.warning('VersionDataStore previously failed initialization');
+      warning('VersionDataStore previously failed initialization');
       return false;
     }
 
-    core.info('Initializing VersionDataStore...');
+    info('Initializing VersionDataStore...');
 
     const mnenvData = await this.fetcher.fetchAllVersions();
     if (!mnenvData) {
       this.initializationFailed = true;
-      core.warning('Failed to fetch versions from YAML, version data will not be available');
+      warning(
+        'Failed to fetch versions from YAML, version data will not be available'
+      );
       return false;
     }
 
@@ -78,7 +80,7 @@ export class VersionDataStore {
     this.providers.set('binary', new BinaryProvider(mnenvData));
 
     this.isInitialized = true;
-    core.info('VersionDataStore initialized successfully');
+    info('VersionDataStore initialized successfully');
     return true;
   }
 

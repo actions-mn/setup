@@ -2,7 +2,7 @@ name: test
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -13,195 +13,193 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  lint:
-    name: Lint and Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
-
-    - uses: actions/setup-node@v6
-      with:
-        node-version: '24.x'
-
-    - run: yarn install
-    - run: yarn build
-    - run: yarn format-check
-    - run: yarn test
+  lint-test:
+    uses: actions-mn/shared/.github/workflows/lint-test.yml@main
 
   # Test default installation (no version specified - uses latest)
   local-latest:
     name: Default Install (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    needs: lint-test
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - uses: ./
+      - uses: ./
 
-    - run: env
-      shell: bash
+      - run: env
+        shell: bash
 
-    - run: metanorma help
+      - run: metanorma help
 
   # Native package manager tests - TypeScript handles version resolution
   native-package-windows:
     name: Native Package Windows (Chocolatey)
     runs-on: windows-latest
+    needs: lint-test
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - uses: ./
-      with:
-        installation-method: 'native'
+      - uses: ./
+        with:
+          installation-method: 'native'
 
-    - run: metanorma --version
-      shell: bash
+      - run: metanorma --version
+        shell: bash
 
   native-package-macos:
     name: Native Package macOS (Homebrew)
     runs-on: macos-latest
+    needs: lint-test
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - uses: ./
-      with:
-        installation-method: 'native'
+      - uses: ./
+        with:
+          installation-method: 'native'
 
-    - run: metanorma --version
+      - run: metanorma --version
 
   native-package-ubuntu:
     name: Native Package Ubuntu (Snap)
     runs-on: ubuntu-latest
+    needs: lint-test
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - uses: ./
-      with:
-        installation-method: 'native'
-        version: '1.14.4'  # Test specific version installation
+      - uses: ./
+        with:
+          installation-method: 'native'
+          version: '1.14.4' # Test specific version installation
 
-    - run: metanorma --version
+      - run: metanorma --version
 
   # Gem-based installation tests
   docker-gem-ubuntu:
     name: Docker Gem Ubuntu
     runs-on: ubuntu-latest
+    needs: lint-test
     container:
       image: ubuntu:22.04
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.4'
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
 
-    - uses: ./
-      with:
-        installation-method: 'gem'
+      - uses: ./
+        with:
+          installation-method: 'gem'
 
-    - run: bundle exec metanorma --version
+      - run: bundle exec metanorma --version
 
   docker-gem-alpine:
     name: Docker Gem Alpine
     runs-on: ubuntu-latest
+    needs: lint-test
     container:
       image: ruby:alpine
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    # ruby:alpine already includes Ruby and Bundler
-    - uses: ./
-      with:
-        installation-method: 'gem'
+      # ruby:alpine already includes Ruby and Bundler
+      - uses: ./
+        with:
+          installation-method: 'gem'
 
-    - run: bundle exec metanorma --version
+      - run: bundle exec metanorma --version
 
   native-gem-ubuntu:
     name: Native Gem Ubuntu
     runs-on: ubuntu-latest
+    needs: lint-test
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.4'
-        bundler-cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
 
-    - uses: ./
-      with:
-        installation-method: 'gem'
+      - uses: ./
+        with:
+          installation-method: 'gem'
 
-    - run: bundle exec metanorma --version
+      - run: bundle exec metanorma --version
 
   native-gem-macos:
     name: Native Gem macOS
     runs-on: macos-latest
+    needs: lint-test
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.4'
-        bundler-cache: true
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
 
-    - uses: ./
-      with:
-        installation-method: 'gem'
+      - uses: ./
+        with:
+          installation-method: 'gem'
 
-    - run: bundle exec metanorma --version
+      - run: bundle exec metanorma --version
 
   # Gem version behavior tests
   gem-respects-gemfile-lock:
     name: Gem Respects Gemfile.lock
     runs-on: ubuntu-latest
+    needs: lint-test
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.4'
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
 
-    # Create a Gemfile with specific version (1.13.0 doesn't have fontist LoadError issue)
-    - run: |
-        echo 'source "https://rubygems.org"' > Gemfile
-        echo 'gem "metanorma-cli", "1.13.0"' >> Gemfile
+      # Create a Gemfile with specific version (1.13.0 doesn't have fontist LoadError issue)
+      - run: |
+          echo 'source "https://rubygems.org"' > Gemfile
+          echo 'gem "metanorma-cli", "1.13.0"' >> Gemfile
 
-    - uses: ./
-      with:
-        installation-method: 'gem'
+      - uses: ./
+        with:
+          installation-method: 'gem'
 
-    - run: |
-        if bundle exec metanorma --version | grep -q "1.13.0"; then
-          echo "correct metanorma version installed (respects Gemfile)"
-        else
-          echo "wrong metanorma version installed"
-          bundle exec metanorma --version
-          exit 1
-        fi
+      - run: |
+          if bundle exec metanorma --version | grep -q "1.13.0"; then
+            echo "correct metanorma version installed (respects Gemfile)"
+          else
+            echo "wrong metanorma version installed"
+            bundle exec metanorma --version
+            exit 1
+          fi
 
   gem-specific-version:
     name: Gem Specific Version
     runs-on: ubuntu-latest
+    needs: lint-test
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.4'
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
 
-    - uses: ./
-      with:
-        installation-method: 'gem'
-        version: '1.13.0'
+      - uses: ./
+        with:
+          installation-method: 'gem'
+          version: '1.13.0'
 
-    - run: |
-        if bundle exec metanorma --version | grep -q "1.13.0"; then
-          echo "correct metanorma version installed"
-        else
-          echo "wrong metanorma version installed"
-          bundle exec metanorma --version
-          exit 1
-        fi
+      - run: |
+          if bundle exec metanorma --version | grep -q "1.13.0"; then
+            echo "correct metanorma version installed"
+          else
+            echo "wrong metanorma version installed"
+            bundle exec metanorma --version
+            exit 1
+          fi

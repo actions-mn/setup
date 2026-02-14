@@ -1,7 +1,8 @@
-import {IMetanormaSettings} from '../metanorma-settings';
-import {BaseInstaller} from './base-installer';
-import * as core from '@actions/core';
-import { getVersionStore, VersionDataStore, Architecture } from '../version';
+import type {IMetanormaSettings} from '../metanorma-settings.js';
+import {BaseInstaller} from './base-installer.js';
+import {startGroup, endGroup, info, debug, warning} from '@actions/core';
+import {getVersionStore} from '../version/index.js';
+import type {VersionDataStore, Architecture} from '../version/index.js';
 
 interface SnapRevisionInfo {
   revision: number;
@@ -50,17 +51,17 @@ export class SnapInstaller extends BaseInstaller {
    */
   private async getRevisionForVersion(
     version: string
-  ): Promise<{ revision: number; channel: string } | null> {
+  ): Promise<{revision: number; channel: string} | null> {
     const store = await this.getVersionStore();
     if (!store) {
-      core.debug('Version store not available, cannot look up revision');
+      debug('Version store not available, cannot look up revision');
       return null;
     }
 
     const provider = store.getSnapProvider();
 
     if (!provider.isAvailable(version)) {
-      core.warning(`Version ${version} is not available in snap versions`);
+      warning(`Version ${version} is not available in snap versions`);
       return null;
     }
 
@@ -71,11 +72,11 @@ export class SnapInstaller extends BaseInstaller {
     const channel = provider.getChannel(version, snapArch);
 
     if (!revision || !channel) {
-      core.warning(`No revision found for version ${version} on ${snapArch}`);
+      warning(`No revision found for version ${version} on ${snapArch}`);
       return null;
     }
 
-    return { revision, channel };
+    return {revision, channel};
   }
 
   private getVersionStore(): Promise<VersionDataStore | null> {
@@ -86,7 +87,7 @@ export class SnapInstaller extends BaseInstaller {
   }
 
   async install(settings: IMetanormaSettings): Promise<void> {
-    core.startGroup('Installing Metanorma via Snap');
+    startGroup('Installing Metanorma via Snap');
 
     try {
       let args: string[] = ['snap', 'install', 'metanorma'];
@@ -96,9 +97,9 @@ export class SnapInstaller extends BaseInstaller {
         const revisionInfo = await this.getRevisionForVersion(settings.version);
 
         if (revisionInfo) {
-          core.info(
+          info(
             `Installing Metanorma version ${settings.version} ` +
-            `(revision ${revisionInfo.revision}, channel: ${revisionInfo.channel})...`
+              `(revision ${revisionInfo.revision}, channel: ${revisionInfo.channel})...`
           );
 
           // Install with revision pinning
@@ -107,40 +108,42 @@ export class SnapInstaller extends BaseInstaller {
           const exitCode = await this.execCommand('sudo', args);
 
           if (exitCode !== 0) {
-            throw new Error(`Snap installation failed with exit code ${exitCode}`);
+            throw new Error(
+              `Snap installation failed with exit code ${exitCode}`
+            );
           }
 
           // Optionally hold the revision to prevent auto-refresh
           // This ensures the specific version stays installed
-          core.info(`Holding Metanorma at revision ${revisionInfo.revision}...`);
+          info(`Holding Metanorma at revision ${revisionInfo.revision}...`);
           await this.execCommand('snap', ['refresh', 'metanorma', '--hold'], {
             ignoreReturnCode: true
           });
 
-          core.info(
+          info(
             `✓ Metanorma ${settings.version} installed successfully via Snap ` +
-            `(revision ${revisionInfo.revision}, held at this version)`
+              `(revision ${revisionInfo.revision}, held at this version)`
           );
           return;
         }
 
         // Fall through to channel-based if revision not found or mnenv unavailable
-        core.info(
+        info(
           `Revision lookup not available for version ${settings.version}, ` +
-          `using channel-based installation`
+            `using channel-based installation`
         );
       }
 
       // Channel-based installation (latest or when version not found/mnenv unavailable)
       if (settings.version) {
         const channel = `${settings.snapChannel}`;
-        core.info(
+        info(
           `Installing Metanorma from ${channel} channel ` +
-          `(version ${settings.version} requested, using channel for installation)...`
+            `(version ${settings.version} requested, using channel for installation)...`
         );
         args.push(`--channel=${channel}`, '--classic');
       } else {
-        core.info('Installing Metanorma latest from stable channel...');
+        info('Installing Metanorma latest from stable channel...');
         args.push('--classic');
       }
 
@@ -150,14 +153,14 @@ export class SnapInstaller extends BaseInstaller {
         throw new Error(`Snap installation failed with exit code ${exitCode}`);
       }
 
-      core.info('✓ Metanorma installed successfully via Snap');
+      info('✓ Metanorma installed successfully via Snap');
     } finally {
-      core.endGroup();
+      endGroup();
     }
   }
 
   async cleanup(): Promise<void> {
     // Snap doesn't require cleanup
-    core.debug('Snap installer: No cleanup needed');
+    debug('Snap installer: No cleanup needed');
   }
 }

@@ -1,5 +1,5 @@
-import {Platform, InstallationMethod} from './platform-detector';
-import {ContainerInfo} from './container-detector';
+import type {Platform, InstallationMethod} from './platform-detector.js';
+import type {ContainerInfo} from './container-detector.js';
 
 /**
  * Metanorma installation settings interface
