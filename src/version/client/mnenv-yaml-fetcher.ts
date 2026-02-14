@@ -24,11 +24,12 @@ export class MnenvYamlFetcher {
     try {
       core.info('Fetching version data from YAML files...');
 
-      const [snapData, gemfileData, homebrewData, chocolateyData] = await Promise.all([
+      const [snapData, gemfileData, homebrewData, chocolateyData, binaryData] = await Promise.all([
         this.fetchYamlFile('snap/versions.yaml'),
         this.fetchYamlFile('gemfile/versions.yaml'),
         this.fetchYamlFile('homebrew/versions.yaml'),
         this.fetchYamlFile('chocolatey/versions.yaml'),
+        this.fetchYamlFile('binary/versions.yaml'),
       ]);
 
       const result: MnenvAllVersions = {
@@ -36,6 +37,7 @@ export class MnenvYamlFetcher {
         gemfile: this.transformGemfileData(gemfileData),
         homebrew: this.transformHomebrewData(homebrewData),
         chocolatey: this.transformChocolateyData(chocolateyData),
+        binary: this.transformBinaryData(binaryData),
       };
 
       this.logSummary(result);
@@ -177,6 +179,37 @@ export class MnenvYamlFetcher {
   }
 
   /**
+   * Transform binary YAML data to MnenvBinaryPlatformData format.
+   */
+  private transformBinaryData(data: any): any {
+    if (!data || !data.versions) {
+      return { count: 0, latest: '', versions: [] };
+    }
+
+    return {
+      count: data.metadata?.count || data.versions.length,
+      latest: data.metadata?.latest_version || '',
+      versions: data.versions.map((v: any) => ({
+        version: v.version,
+        tag_name: v.tag_name,
+        html_url: v.html_url,
+        published_at: v.published_at || null,
+        parsed_at: v.parsed_at || null,
+        display_name: v.display_name || v.version,
+        platforms: (v.platforms || []).map((p: any) => ({
+          name: p.name,
+          arch: p.arch,
+          format: p.format,
+          filename: p.filename,
+          url: p.url,
+          size: p.size,
+          variant: p.variant,
+        })),
+      })),
+    };
+  }
+
+  /**
    * Log summary of fetched version data.
    */
   private logSummary(data: MnenvAllVersions): void {
@@ -185,5 +218,6 @@ export class MnenvYamlFetcher {
     core.info(`  Snap: ${data.snap.count} versions (latest: ${data.snap.latest})`);
     core.info(`  Homebrew: ${data.homebrew.count} versions (latest: ${data.homebrew.latest})`);
     core.info(`  Chocolatey: ${data.chocolatey.count} versions (latest: ${data.chocolatey.latest})`);
+    core.info(`  Binary: ${data.binary.count} versions (latest: ${data.binary.latest})`);
   }
 }

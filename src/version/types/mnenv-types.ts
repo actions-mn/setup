@@ -35,6 +35,26 @@ export interface MnenvChocolateyVersion {
   display_name: string;
 }
 
+export interface MnenvBinaryPlatformArtifact {
+  name: string;
+  arch: string;
+  format: string;
+  filename: string;
+  url: string;
+  size: number;
+  variant?: string;
+}
+
+export interface MnenvBinaryVersion {
+  version: string;
+  published_at: string | null;
+  parsed_at: string | null;
+  display_name: string;
+  tag_name: string;
+  html_url: string;
+  platforms: MnenvBinaryPlatformArtifact[];
+}
+
 export interface MnenvPlatformData<T> {
   count: number;
   latest: string;
@@ -46,4 +66,5 @@ export interface MnenvAllVersions {
   snap: MnenvPlatformData<MnenvSnapVersion>;
   homebrew: MnenvPlatformData<MnenvHomebrewVersion>;
   chocolatey: MnenvPlatformData<MnenvChocolateyVersion>;
+  binary: MnenvPlatformData<MnenvBinaryVersion>;
 }

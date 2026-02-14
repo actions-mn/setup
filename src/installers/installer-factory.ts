@@ -6,6 +6,7 @@ import {ChocoInstaller} from './choco-installer';
 import {GemUbuntuInstaller} from './gem-ubuntu-installer';
 import {GemAlpineInstaller} from './gem-alpine-installer';
 import {NativeGemInstaller} from './native-gem-installer';
+import {BinaryInstaller} from './binary-installer';
 import {IMetanormaSettings} from '../metanorma-settings';
 import {LinuxDistribution} from '../container-detector';
 import * as core from '@actions/core';
@@ -30,6 +31,11 @@ export class InstallerFactory {
     // Gem installation method
     if (installationMethod === InstallationMethod.Gem) {
       return this.createGemInstaller(platform, settings);
+    }
+
+    // Binary installation method
+    if (installationMethod === InstallationMethod.Binary) {
+      return new BinaryInstaller();
     }
 
     // Auto detection

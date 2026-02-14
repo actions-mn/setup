@@ -2,7 +2,7 @@
  * Version management module.
  *
  * Provides unified access to Metanorma version information
- * across all platforms (gemfile, snap, homebrew, chocolatey).
+ * across all platforms (gemfile, snap, homebrew, chocolatey, binary).
  *
  * @example
  * ```typescript
@@ -29,6 +29,7 @@ export { SnapProvider } from './providers/snap-provider';
 export { GemfileProvider } from './providers/gemfile-provider';
 export { HomebrewProvider } from './providers/homebrew-provider';
 export { ChocolateyProvider } from './providers/chocolatey-provider';
+export { BinaryProvider } from './providers/binary-provider';
 
 // Types
 export * from './types/platform-types';

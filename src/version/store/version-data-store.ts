@@ -5,6 +5,7 @@ import { SnapProvider } from '../providers/snap-provider';
 import { GemfileProvider } from '../providers/gemfile-provider';
 import { HomebrewProvider } from '../providers/homebrew-provider';
 import { ChocolateyProvider } from '../providers/chocolatey-provider';
+import { BinaryProvider } from '../providers/binary-provider';
 import { IVersionProvider, Platform } from '../types/provider-types';
 
 /**
@@ -74,6 +75,7 @@ export class VersionDataStore {
     this.providers.set('gemfile', new GemfileProvider(mnenvData));
     this.providers.set('homebrew', new HomebrewProvider(mnenvData));
     this.providers.set('chocolatey', new ChocolateyProvider(mnenvData));
+    this.providers.set('binary', new BinaryProvider(mnenvData));
 
     this.isInitialized = true;
     core.info('VersionDataStore initialized successfully');
@@ -125,6 +127,14 @@ export class VersionDataStore {
    */
   getChocolateyProvider(): ChocolateyProvider {
     return this.getProvider('chocolatey') as ChocolateyProvider;
+  }
+
+  /**
+   * Get binary provider (typed).
+   * @throws Error if store is not initialized
+   */
+  getBinaryProvider(): BinaryProvider {
+    return this.getProvider('binary') as BinaryProvider;
   }
 
   /**

@@ -13,7 +13,8 @@ export enum Platform {
 export enum InstallationMethod {
   Auto = 'auto',
   Native = 'native',
-  Gem = 'gem'
+  Gem = 'gem',
+  Binary = 'binary'
 }
 
 /**
