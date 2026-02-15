@@ -11,6 +11,9 @@ on:
       - '**.md'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   check-dist:
     uses: actions-mn/shared/.github/workflows/check-dist.yml@main

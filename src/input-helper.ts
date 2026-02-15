@@ -7,6 +7,17 @@ import {
 import type {IMetanormaSettings} from './metanorma-settings.js';
 import {getInstallationMethod, detectContainer} from './container-detector.js';
 
+// Semver regex pattern for validating version input
+const SEMVER_REGEX = /^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$/;
+
+/**
+ * Validate that a version string is a valid semver format
+ * This prevents command injection attacks when version is used in shell commands
+ */
+function isValidVersion(version: string): boolean {
+  return SEMVER_REGEX.test(version);
+}
+
 /**
  * Get and validate all inputs
  */
@@ -17,6 +28,14 @@ export async function getInputs(): Promise<IMetanormaSettings> {
   const versionInput = getInput('version');
   result.version = versionInput || null;
   debug(`version = '${result.version}'`);
+
+  // Validate version format to prevent command injection
+  if (result.version && !isValidVersion(result.version)) {
+    throw new Error(
+      `Invalid version format '${result.version}'. ` +
+        `Version must be in semver format (e.g., 1.14.0, 1.14.0-beta.1)`
+    );
+  }
 
   // Snap channel input
   result.snapChannel = getInput('snap-channel') || 'stable';
