@@ -1,6 +1,49 @@
-lib
-__tests__/runner/*
-node_modules
+# Shared .gitignore template for actions-mn repositories
+# Copy this file to the root of each actions-mn action repository
 
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build outputs
+# NOTE: dist/ is intentionally NOT ignored - GitHub Actions requires committed dist/
+lib/
+*.tsbuildinfo
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.tgz
+
+# AI/Editor context files (local development only)
 CLAUDE.md
-
+.claude/
+.cursor/
+.aider*
