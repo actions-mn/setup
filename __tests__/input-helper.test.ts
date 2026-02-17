@@ -184,4 +184,100 @@ describe('InputHelper', () => {
 
     expect(result.gemfile).toBe('./custom/Gemfile');
   });
+
+  it('should parse extra-flavors input as array', async () => {
+    vi.mocked(core.getInput).mockImplementation((name: string) => {
+      const inputs: Record<string, string> = {
+        version: '',
+        'snap-channel': 'stable',
+        'choco-prerelase': '',
+        'installation-method': 'gem',
+        'bundler-version': '2.6.5',
+        gemfile: '',
+        'extra-flavors': 'bsi nist ribose'
+      };
+      return inputs[name] || '';
+    });
+
+    const result = await getInputs();
+
+    expect(result.extraFlavors).toEqual(['bsi', 'nist', 'ribose']);
+  });
+
+  it('should handle extra-flavors with multiple spaces', async () => {
+    vi.mocked(core.getInput).mockImplementation((name: string) => {
+      const inputs: Record<string, string> = {
+        version: '',
+        'snap-channel': 'stable',
+        'choco-prerelase': '',
+        'installation-method': 'gem',
+        'bundler-version': '2.6.5',
+        gemfile: '',
+        'extra-flavors': '  bsi   nist  '
+      };
+      return inputs[name] || '';
+    });
+
+    const result = await getInputs();
+
+    expect(result.extraFlavors).toEqual(['bsi', 'nist']);
+  });
+
+  it('should handle empty extra-flavors input', async () => {
+    vi.mocked(core.getInput).mockImplementation((name: string) => {
+      const inputs: Record<string, string> = {
+        version: '',
+        'snap-channel': 'stable',
+        'choco-prerelase': '',
+        'installation-method': 'gem',
+        'bundler-version': '2.6.5',
+        gemfile: '',
+        'extra-flavors': ''
+      };
+      return inputs[name] || '';
+    });
+
+    const result = await getInputs();
+
+    expect(result.extraFlavors).toBeUndefined();
+  });
+
+  it('should parse github-packages-token input', async () => {
+    vi.mocked(core.getInput).mockImplementation((name: string) => {
+      const inputs: Record<string, string> = {
+        version: '',
+        'snap-channel': 'stable',
+        'choco-prerelase': '',
+        'installation-method': 'gem',
+        'bundler-version': '2.6.5',
+        gemfile: '',
+        'extra-flavors': 'bsi',
+        'github-packages-token': 'ghp_testtoken123'
+      };
+      return inputs[name] || '';
+    });
+
+    const result = await getInputs();
+
+    expect(result.githubPackagesToken).toBe('ghp_testtoken123');
+  });
+
+  it('should handle missing github-packages-token input', async () => {
+    vi.mocked(core.getInput).mockImplementation((name: string) => {
+      const inputs: Record<string, string> = {
+        version: '',
+        'snap-channel': 'stable',
+        'choco-prerelase': '',
+        'installation-method': 'gem',
+        'bundler-version': '2.6.5',
+        gemfile: '',
+        'extra-flavors': 'iso'
+      };
+      return inputs[name] || '';
+    });
+
+    const result = await getInputs();
+
+    expect(result.githubPackagesToken).toBeUndefined();
+  });
 });

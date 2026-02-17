@@ -36,6 +36,12 @@ inputs:
   use-prebuilt-locks:
     description: 'Use pre-tested Gemfile.lock files from metanorma/versions repository (default: true)'
     default: 'true'
+  extra-flavors:
+    description: 'Space-separated list of extra flavor gems to install (e.g., "bsi nist ribose")'
+    default: ''
+  github-packages-token:
+    description: 'GitHub token to access private packages at rubygems.pkg.github.com/metanorma (required for bsi, nist flavors)'
+    default: ''
 outputs:
   version:
     description: 'The installed Metanorma version'

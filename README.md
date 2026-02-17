@@ -8,6 +8,8 @@ This action sets up the Metanorma toolchain and adds the command-line tools to t
 
 ## What's new
 
+- **Extra flavors support**: Install additional metanorma flavor gems (both public and private) in a single step - consolidates functionality from the separate `setup-flavors` action
+- **Private flavor support**: Built-in GitHub Packages authentication for private flavors (bsi, nist, plateau) via `github-packages-token` input
 - **Idempotent installation**: Automatically skips redundant installations when Metanorma is already installed with the same configuration - saves time in workflows that may call the action multiple times
 - **YAML-based version registry**: Fetches version data directly from [metanorma/versions](https://github.com/metanorma/versions) repository YAML files - no Ruby/Bundler dependencies
 - **Pre-built Gemfile.lock integration**: Automatically uses pre-tested Gemfile.lock files from [metanorma/versions](https://github.com/metanorma/versions) for deterministic, tested dependency resolution
@@ -59,6 +61,15 @@ This action sets up the Metanorma toolchain and adds the command-line tools to t
     # When true and a specific version is requested, uses pre-built lock files
     # When false, respects existing Gemfile.lock in workspace
     use-prebuilt-locks: 'true' # optional, default is 'true'
+
+    # Space-separated list of extra flavor gems to install
+    # Public flavors: iso, ietf, ribose, cc, plateau, etc. (from RubyGems)
+    # Private flavors: bsi, nist (require github-packages-token)
+    extra-flavors: '' # optional, default is ''
+
+    # GitHub token to access private packages at rubygems.pkg.github.com/metanorma
+    # Required for private flavors: bsi, nist
+    github-packages-token: '' # optional, default is ''
 ```
 <!-- end usage -->
 
@@ -346,6 +357,95 @@ To install pre-release versions from Chocolatey:
   with:
     installation-method: 'native'
     choco-prerelease: 'true'
+```
+
+## Installing Extra Flavors
+
+The action can install additional metanorma flavor gems beyond the default CLI installation. This replaces the separate `actions-mn/setup-flavors` action.
+
+### Public Flavors
+
+Public flavors are available on RubyGems and don't require authentication:
+
+```yaml
+- uses: ruby/setup-ruby@v1
+  with:
+    ruby-version: '3.2'
+
+- uses: actions-mn/setup@v1
+  with:
+    installation-method: 'gem'
+    extra-flavors: 'iso ietf ribose'
+```
+
+### Private Flavors
+
+Private flavors (bsi, nist) are hosted on GitHub Packages and require authentication:
+
+```yaml
+- uses: ruby/setup-ruby@v1
+  with:
+    ruby-version: '3.2'
+
+- uses: actions-mn/setup@v1
+  with:
+    installation-method: 'gem'
+    extra-flavors: 'bsi nist'
+    github-packages-token: ${{ secrets.METANORMA_CI_PAT_TOKEN }}
+```
+
+### Private Flavors List
+
+| Flavor | Description | Requires Token |
+|--------|-------------|----------------|
+| `bsi` | British Standards Institution | Yes |
+| `nist` | National Institute of Standards and Technology | Yes |
+| `iso` | International Organization for Standardization | No |
+| `ietf` | Internet Engineering Task Force | No |
+| `ribose` | Ribose flavor | No |
+| `cc` | CalConnect (formerly csd) | No |
+| `plateau` | Plateau flavor | No |
+
+### Mixed Public and Private Flavors
+
+You can install both public and private flavors together:
+
+```yaml
+- uses: ruby/setup-ruby@v1
+  with:
+    ruby-version: '3.2'
+
+- uses: actions-mn/setup@v1
+  with:
+    installation-method: 'gem'
+    extra-flavors: 'iso bsi ribose'
+    github-packages-token: ${{ secrets.METANORMA_CI_PAT_TOKEN }}
+```
+
+### BSI Fontist Setup
+
+When installing the BSI flavor, the action automatically configures fontist private formulas for proprietary fonts. This requires the `github-packages-token` to access the private fontist formulas repository.
+
+### Migration from setup-flavors
+
+If you were previously using the separate `setup-flavors` action:
+
+**Before:**
+```yaml
+- uses: actions-mn/setup@v3
+- uses: actions-mn/setup-flavors@v1
+  with:
+    extra-flavors: bsi
+    github-packages-token: ${{ secrets.METANORMA_CI_PAT_TOKEN }}
+```
+
+**After:**
+```yaml
+- uses: actions-mn/setup@v3
+  with:
+    installation-method: gem
+    extra-flavors: bsi
+    github-packages-token: ${{ secrets.METANORMA_CI_PAT_TOKEN }}
 ```
 
 ## Idempotent Installation

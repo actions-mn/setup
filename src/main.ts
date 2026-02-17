@@ -14,6 +14,7 @@ import {
 import {getVersionStore} from './version/index.js';
 import type {VersionDataStore} from './version/index.js';
 import {IdempotencyManager} from './idempotency/index.js';
+import {FlavorInstaller, configureGitHubPackages} from './flavors/index.js';
 
 async function run(): Promise<void> {
   let versionStore: VersionDataStore | null = null;
@@ -48,6 +49,13 @@ async function run(): Promise<void> {
 
     info(idempotencyResult.details || 'Proceeding with installation...');
 
+    // Configure GitHub Packages authentication BEFORE main installation
+    // This is needed if the existing Gemfile already references private gems
+    if (settings.githubPackagesToken) {
+      info('Configuring GitHub Packages authentication for private gems');
+      await configureGitHubPackages(settings.githubPackagesToken);
+    }
+
     // Create and use installer
     const installer = InstallerFactory.createInstaller(
       settings.platform,
@@ -57,6 +65,12 @@ async function run(): Promise<void> {
 
     // Install Metanorma
     await installer.install(settings);
+
+    // Install extra flavors if configured
+    if (settings.extraFlavors && settings.extraFlavors.length > 0) {
+      const flavorInstaller = new FlavorInstaller(settings);
+      await flavorInstaller.installFlavors();
+    }
 
     // Save installation state for idempotency
     const installedVersion = await getMetanormaVersion();

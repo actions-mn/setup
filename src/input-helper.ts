@@ -102,6 +102,23 @@ export async function getInputs(): Promise<IMetanormaSettings> {
     (usePrebuiltLocksInput || 'true').toUpperCase() !== 'FALSE';
   debug(`usePrebuiltLocks = ${result.usePrebuiltLocks}`);
 
+  // Extra flavors (space-separated list)
+  const extraFlavorsInput = getInput('extra-flavors');
+  if (extraFlavorsInput) {
+    result.extraFlavors = extraFlavorsInput
+      .split(/\s+/)
+      .map(f => f.trim())
+      .filter(f => f.length > 0);
+    debug(`extraFlavors = ${JSON.stringify(result.extraFlavors)}`);
+  }
+
+  // GitHub Packages token (for private flavors)
+  const githubPackagesTokenInput = getInput('github-packages-token');
+  if (githubPackagesTokenInput) {
+    result.githubPackagesToken = githubPackagesTokenInput;
+    debug('githubPackagesToken = [REDACTED]');
+  }
+
   // Container detection (Linux only)
   if (result.platform === Platform.Linux) {
     result.containerInfo = await detectContainer();
