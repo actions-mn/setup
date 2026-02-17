@@ -223,50 +223,56 @@ export class FlavorInstaller {
 
     this.terminal.info('Setting up BSI fontist private formulas');
 
-    // Ensure fontist is available (install via gem if not present)
-    const fontistCheck = await this.execCommand('bundle', [
-      'exec',
-      'fontist',
-      '--version'
-    ]);
+    // Check if fontist is available (use 'fontist version' not '--version')
+    // Note: We use ignoreReturnCode to gracefully handle missing fontist
+    const fontistCheck = await this.execCommand(
+      'bundle',
+      ['exec', 'fontist', 'version'],
+      {ignoreReturnCode: true}
+    );
 
     if (fontistCheck !== 0) {
       this.terminal.info(
-        'Fontist not available via bundle, installing via gem'
+        'Fontist not available via bundle, checking system fontist'
       );
-      const installExitCode = await this.execCommand('gem', [
-        'install',
-        'fontist'
-      ]);
-      if (installExitCode !== 0) {
-        this.terminal.warning('Failed to install fontist, continuing...');
+      // Try system fontist before installing
+      const systemFontistCheck = await this.execCommand(
+        'fontist',
+        ['version'],
+        {ignoreReturnCode: true}
+      );
+      if (systemFontistCheck !== 0) {
+        this.terminal.info('Installing fontist via gem');
+        const installExitCode = await this.execCommand('gem', [
+          'install',
+          'fontist'
+        ]);
+        if (installExitCode !== 0) {
+          this.terminal.warning('Failed to install fontist, continuing...');
+        }
       }
     }
 
     // Run fontist update first (matches original setup-flavors behavior)
-    await this.execCommand('fontist', ['update']);
+    await this.execCommand('fontist', ['update'], {ignoreReturnCode: true});
 
     // Setup the private fontist formulas repository
     const repoUrl = BSI_FONTIST_REPO_URL.replace('${TOKEN}', token);
 
     // fontist repo setup metanorma <url>
-    const setupExitCode = await this.execCommand('fontist', [
-      'repo',
-      'setup',
-      'metanorma',
-      repoUrl
-    ]);
+    const setupExitCode = await this.execCommand(
+      'fontist',
+      ['repo', 'setup', 'metanorma', repoUrl],
+      {ignoreReturnCode: true}
+    );
 
     if (setupExitCode !== 0) {
       // Try via bundle exec as fallback
-      const bundleSetupExitCode = await this.execCommand('bundle', [
-        'exec',
-        'fontist',
-        'repo',
-        'setup',
-        'metanorma',
-        repoUrl
-      ]);
+      const bundleSetupExitCode = await this.execCommand(
+        'bundle',
+        ['exec', 'fontist', 'repo', 'setup', 'metanorma', repoUrl],
+        {ignoreReturnCode: true}
+      );
 
       if (bundleSetupExitCode !== 0) {
         this.terminal.warning(
@@ -277,21 +283,19 @@ export class FlavorInstaller {
     }
 
     // fontist repo update metanorma
-    const updateExitCode = await this.execCommand('fontist', [
-      'repo',
-      'update',
-      'metanorma'
-    ]);
+    const updateExitCode = await this.execCommand(
+      'fontist',
+      ['repo', 'update', 'metanorma'],
+      {ignoreReturnCode: true}
+    );
 
     if (updateExitCode !== 0) {
       // Try via bundle exec as fallback
-      await this.execCommand('bundle', [
-        'exec',
-        'fontist',
-        'repo',
-        'update',
-        'metanorma'
-      ]);
+      await this.execCommand(
+        'bundle',
+        ['exec', 'fontist', 'repo', 'update', 'metanorma'],
+        {ignoreReturnCode: true}
+      );
     }
 
     this.terminal.success('BSI fontist private formulas configured');

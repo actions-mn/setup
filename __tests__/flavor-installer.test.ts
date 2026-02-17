@@ -176,11 +176,11 @@ describe('FlavorInstaller', () => {
         expect.any(Object)
       );
 
-      // Should check fontist version
+      // Should check fontist version (using 'version' not '--version')
       expect(mockExec).toHaveBeenCalledWith(
         'bundle',
-        expect.arrayContaining(['exec', 'fontist', '--version']),
-        expect.any(Object)
+        expect.arrayContaining(['exec', 'fontist', 'version']),
+        expect.objectContaining({ignoreReturnCode: true})
       );
 
       // Should run fontist update
