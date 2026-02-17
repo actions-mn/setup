@@ -67,4 +67,14 @@ export interface IMetanormaSettings {
    * Whether to use pre-built Gemfile.lock files from metanorma/versions
    */
   usePrebuiltLocks?: boolean;
+
+  /**
+   * Extra flavor gems to install (e.g., ['bsi', 'nist', 'ribose'])
+   */
+  extraFlavors?: string[];
+
+  /**
+   * GitHub token to access private packages at rubygems.pkg.github.com/metanorma
+   */
+  githubPackagesToken?: string;
 }
