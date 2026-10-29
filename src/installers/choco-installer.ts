@@ -92,68 +92,86 @@ export class ChocoInstaller extends BaseInstaller {
       // directory in the MACHINE PATH. Each Actions step is a fresh process
       // that inherits the environment captured at job start, so that PATH
       // change is invisible to every later step ("Unable to locate
-      // executable file: metanorma.exe"). Locate the install directory
-      // ourselves and export it for this job.
-      const installDir = await this.resolveMsiInstallDir();
-      if (installDir) {
-        addPath(installDir);
-        info(`Added Metanorma install directory to PATH: ${installDir}`);
-      } else {
-        warning(
-          'Could not locate the Metanorma install directory; the machine PATH set by the MSI will not be visible to later steps'
-        );
-      }
+      // executable file: metanorma.exe"). Export the MSI's own PATH entries for
+      // this job, re-running its bootstrap seed when it did not complete.
+      await this.exportMsiPathEntries();
     } finally {
       endGroup();
     }
   }
 
   /**
-   * Find the directory holding metanorma.exe after the MSI install.
-   * The MSI's ARP entry carries no InstallLocation, so fall back to a
-   * bounded search of the per-machine Program Files roots (the tebako
-   * packaging installs under Program Files and extends the system PATH).
+   * The 1.17.0 MSI installs under C:\Program Files\metanorma, appends
+   * <install>\bin and <install>\home\shims (the metanorma shim lives in
+   * the latter) to the MACHINE PATH, and seeds the shims through
+   * bootstrap-seed.cmd. Each Actions step is a fresh process that
+   * inherits the environment captured at job start, so neither the PATH
+   * change nor a failed seed self-heals: locate the install directory
+   * (the MSI records it under SOFTWARE\Metanorma\metanorma!InstallDir),
+   * re-run the idempotent seed, and export both directories.
+   */
+  private async exportMsiPathEntries(): Promise<void> {
+    const installDir = await this.resolveMsiInstallDir();
+    if (!installDir) {
+      warning(
+        'Could not locate the Metanorma install directory; the machine PATH set by the MSI will not be visible to later steps'
+      );
+      return;
+    }
+
+    const seed = join(installDir, 'bootstrap-seed.cmd');
+    if (existsSync(seed)) {
+      const code = await this.execCommand(
+        'cmd',
+        ['/c', seed],
+        { silent: true, ignoreReturnCode: true }
+      );
+      if (code !== 0) {
+        warning(`bootstrap-seed.cmd exited ${code}; continuing`);
+      }
+    }
+
+    let added = 0;
+    for (const sub of ['bin', join('home', 'shims')]) {
+      const dir = join(installDir, sub);
+      if (existsSync(dir)) {
+        addPath(dir);
+        info(`Added to PATH: ${dir}`);
+        added += 1;
+      }
+    }
+    if (added === 0) {
+      addPath(installDir);
+      info(`Added to PATH: ${installDir}`);
+    }
+  }
+
+  /**
+   * Locate the MSI install directory: the InstallDir registry value the
+   * MSI writes, falling back to its known default location.
    */
   private async resolveMsiInstallDir(): Promise<string | null> {
-    return (
-      (await this.resolveInstallDirFromRegistry()) ??
-      (await this.resolveInstallDirFromFilesystem())
-    );
-  }
-
-  private async resolveInstallDirFromRegistry(): Promise<string | null> {
     const script = [
-      '$e = Get-ItemProperty',
-      "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',",
-      "'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'",
+      '$p = Get-ItemProperty',
+      "'HKLM:\\SOFTWARE\\Metanorma\\metanorma',",
+      "'HKLM:\\SOFTWARE\\WOW6432Node\\Metanorma\\metanorma',",
+      "'HKCU:\\SOFTWARE\\Metanorma\\metanorma'",
       '-ErrorAction SilentlyContinue |',
-      "Where-Object { $_.DisplayName -like '*Metanorma*' -and $_.InstallLocation } |",
-      'Select-Object -First 1;',
-      'if ($e -and $e.InstallLocation) { $e.InstallLocation }'
+      'Where-Object { $_.InstallDir } | Select-Object -First 1;',
+      'if ($p -and $p.InstallDir) { $p.InstallDir }'
     ].join(' ');
 
     const dir = await this.runPowershellCapture(script);
-    if (!dir) {
-      debug('No Metanorma uninstall entry with InstallLocation found');
-      return null;
+    if (dir) {
+      return dir;
     }
-    return this.pickExeDir(dir);
-  }
+    debug('No InstallDir registry value found; trying the default location');
 
-  private async resolveInstallDirFromFilesystem(): Promise<string | null> {
-    const script = [
-      "$h = Get-ChildItem 'C:\\Program Files','C:\\Program Files (x86)'",
-      '-Recurse -Depth 4 -Filter metanorma.exe -File',
-      '-ErrorAction SilentlyContinue | Select-Object -First 1;',
-      'if ($h) { $h.DirectoryName }'
-    ].join(' ');
-
-    const dir = await this.runPowershellCapture(script);
-    if (!dir) {
-      debug('metanorma.exe not found under the Program Files roots');
-      return null;
-    }
-    return dir;
+    const fallback = join(
+      process.env['ProgramFiles'] ?? 'C:\\Program Files',
+      'metanorma'
+    );
+    return existsSync(fallback) ? fallback : null;
   }
 
   private async runPowershellCapture(script: string): Promise<string | null> {
@@ -178,19 +196,6 @@ export class ChocoInstaller extends BaseInstaller {
     }
 
     return output.trim() || null;
-  }
-
-  private pickExeDir(dir: string): string {
-    // Some MSI layouts record the root install directory while the
-    // executable lives in a bin subdirectory.
-    if (existsSync(join(dir, 'metanorma.exe'))) {
-      return dir;
-    }
-    if (existsSync(join(dir, 'bin', 'metanorma.exe'))) {
-      return join(dir, 'bin');
-    }
-    debug(`metanorma.exe not found under ${dir}; exporting the root anyway`);
-    return dir;
   }
 
   async cleanup(): Promise<void> {
