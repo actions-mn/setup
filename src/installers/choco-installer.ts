@@ -110,10 +110,18 @@ export class ChocoInstaller extends BaseInstaller {
 
   /**
    * Find the directory holding metanorma.exe after the MSI install.
-   * Queries the Windows uninstall registry for the Metanorma entry's
-   * InstallLocation.
+   * The MSI's ARP entry carries no InstallLocation, so fall back to a
+   * bounded search of the per-machine Program Files roots (the tebako
+   * packaging installs under Program Files and extends the system PATH).
    */
   private async resolveMsiInstallDir(): Promise<string | null> {
+    return (
+      (await this.resolveInstallDirFromRegistry()) ??
+      (await this.resolveInstallDirFromFilesystem())
+    );
+  }
+
+  private async resolveInstallDirFromRegistry(): Promise<string | null> {
     const script = [
       '$e = Get-ItemProperty',
       "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',",
@@ -124,6 +132,31 @@ export class ChocoInstaller extends BaseInstaller {
       'if ($e -and $e.InstallLocation) { $e.InstallLocation }'
     ].join(' ');
 
+    const dir = await this.runPowershellCapture(script);
+    if (!dir) {
+      debug('No Metanorma uninstall entry with InstallLocation found');
+      return null;
+    }
+    return this.pickExeDir(dir);
+  }
+
+  private async resolveInstallDirFromFilesystem(): Promise<string | null> {
+    const script = [
+      "$h = Get-ChildItem 'C:\\Program Files','C:\\Program Files (x86)'",
+      '-Recurse -Depth 4 -Filter metanorma.exe -File',
+      '-ErrorAction SilentlyContinue | Select-Object -First 1;',
+      'if ($h) { $h.DirectoryName }'
+    ].join(' ');
+
+    const dir = await this.runPowershellCapture(script);
+    if (!dir) {
+      debug('metanorma.exe not found under the Program Files roots');
+      return null;
+    }
+    return dir;
+  }
+
+  private async runPowershellCapture(script: string): Promise<string | null> {
     let output = '';
     const exitCode = await exec(
       'powershell',
@@ -144,12 +177,10 @@ export class ChocoInstaller extends BaseInstaller {
       return null;
     }
 
-    const dir = output.trim();
-    if (!dir) {
-      debug('No Metanorma uninstall entry with InstallLocation found');
-      return null;
-    }
+    return output.trim() || null;
+  }
 
+  private pickExeDir(dir: string): string {
     // Some MSI layouts record the root install directory while the
     // executable lives in a bin subdirectory.
     if (existsSync(join(dir, 'metanorma.exe'))) {
