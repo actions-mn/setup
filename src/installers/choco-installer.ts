@@ -1,6 +1,16 @@
 import type {IMetanormaSettings} from '../metanorma-settings.js';
 import {BaseInstaller} from './base-installer.js';
-import {startGroup, endGroup, info, debug, warning} from '@actions/core';
+import {
+  startGroup,
+  endGroup,
+  info,
+  debug,
+  warning,
+  addPath
+} from '@actions/core';
+import {exec} from '@actions/exec';
+import {existsSync} from 'fs';
+import {join} from 'path';
 
 /**
  * Windows Chocolatey installer
@@ -77,9 +87,79 @@ export class ChocoInstaller extends BaseInstaller {
       }
 
       info('✓ Metanorma installed successfully via Chocolatey');
+
+      // Since the 1.17.0 MSI packaging, the installer records the install
+      // directory in the MACHINE PATH. Each Actions step is a fresh process
+      // that inherits the environment captured at job start, so that PATH
+      // change is invisible to every later step ("Unable to locate
+      // executable file: metanorma.exe"). Locate the install directory
+      // ourselves and export it for this job.
+      const installDir = await this.resolveMsiInstallDir();
+      if (installDir) {
+        addPath(installDir);
+        info(`Added Metanorma install directory to PATH: ${installDir}`);
+      } else {
+        warning(
+          'Could not locate the Metanorma install directory; the machine PATH set by the MSI will not be visible to later steps'
+        );
+      }
     } finally {
       endGroup();
     }
+  }
+
+  /**
+   * Find the directory holding metanorma.exe after the MSI install.
+   * Queries the Windows uninstall registry for the Metanorma entry's
+   * InstallLocation.
+   */
+  private async resolveMsiInstallDir(): Promise<string | null> {
+    const script = [
+      '$e = Get-ItemProperty',
+      "'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',",
+      "'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'",
+      '-ErrorAction SilentlyContinue |',
+      "Where-Object { $_.DisplayName -like '*Metanorma*' -and $_.InstallLocation } |",
+      'Select-Object -First 1;',
+      'if ($e -and $e.InstallLocation) { $e.InstallLocation }'
+    ].join(' ');
+
+    let output = '';
+    const exitCode = await exec(
+      'powershell',
+      ['-NoProfile', '-Command', script],
+      {
+        silent: true,
+        ignoreReturnCode: true,
+        listeners: {
+          stdout: (data: Buffer) => {
+            output += data.toString();
+          }
+        }
+      }
+    );
+
+    if (exitCode !== 0) {
+      debug(`Install-location query exited ${exitCode}`);
+      return null;
+    }
+
+    const dir = output.trim();
+    if (!dir) {
+      debug('No Metanorma uninstall entry with InstallLocation found');
+      return null;
+    }
+
+    // Some MSI layouts record the root install directory while the
+    // executable lives in a bin subdirectory.
+    if (existsSync(join(dir, 'metanorma.exe'))) {
+      return dir;
+    }
+    if (existsSync(join(dir, 'bin', 'metanorma.exe'))) {
+      return join(dir, 'bin');
+    }
+    debug(`metanorma.exe not found under ${dir}; exporting the root anyway`);
+    return dir;
   }
 
   async cleanup(): Promise<void> {
