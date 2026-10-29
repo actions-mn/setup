@@ -121,13 +121,11 @@ export class ChocoInstaller extends BaseInstaller {
 
     const seed = join(installDir, 'bootstrap-seed.cmd');
     if (existsSync(seed)) {
-      const code = await this.execCommand(
-        'cmd',
-        ['/c', seed],
-        { silent: true, ignoreReturnCode: true }
-      );
-      if (code !== 0) {
-        warning(`bootstrap-seed.cmd exited ${code}; continuing`);
+      // The seed's tebako steps have no error handling and the script always
+      // exits 0, so capture its output and check its product afterwards.
+      const seedOutput = await this.runCommandCapture('cmd', ['/c', seed]);
+      if (seedOutput.trim()) {
+        info(`bootstrap-seed.cmd output:\n${seedOutput.trim()}`);
       }
     }
 
@@ -143,6 +141,13 @@ export class ChocoInstaller extends BaseInstaller {
     if (added === 0) {
       addPath(installDir);
       info(`Added to PATH: ${installDir}`);
+    }
+
+    const shim = join(installDir, 'home', 'shims', 'metanorma.exe');
+    if (!existsSync(shim)) {
+      warning(
+        `The metanorma shim ${shim} was not created; 'metanorma' will not resolve even though the install directories are on PATH`
+      );
     }
   }
 
@@ -161,7 +166,7 @@ export class ChocoInstaller extends BaseInstaller {
       'if ($p -and $p.InstallDir) { $p.InstallDir }'
     ].join(' ');
 
-    const dir = await this.runPowershellCapture(script);
+    const dir = (await this.runPowershellCapture(script)).trim();
     if (dir) {
       return dir;
     }
@@ -175,27 +180,32 @@ export class ChocoInstaller extends BaseInstaller {
   }
 
   private async runPowershellCapture(script: string): Promise<string | null> {
+    return this.runCommandCapture('powershell', ['-NoProfile', '-Command', script]);
+  }
+
+  private async runCommandCapture(
+    tool: string,
+    args: string[]
+  ): Promise<string> {
     let output = '';
-    const exitCode = await exec(
-      'powershell',
-      ['-NoProfile', '-Command', script],
-      {
-        silent: true,
-        ignoreReturnCode: true,
-        listeners: {
-          stdout: (data: Buffer) => {
-            output += data.toString();
-          }
+    const exitCode = await exec(tool, args, {
+      silent: true,
+      ignoreReturnCode: true,
+      listeners: {
+        stdout: (data: Buffer) => {
+          output += data.toString();
+        },
+        stderr: (data: Buffer) => {
+          output += data.toString();
         }
       }
-    );
+    });
 
     if (exitCode !== 0) {
       debug(`Install-location query exited ${exitCode}`);
-      return null;
     }
 
-    return output.trim() || null;
+    return output;
   }
 
   async cleanup(): Promise<void> {
