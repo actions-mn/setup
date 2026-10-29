@@ -179,7 +179,7 @@ export class ChocoInstaller extends BaseInstaller {
     return existsSync(fallback) ? fallback : null;
   }
 
-  private async runPowershellCapture(script: string): Promise<string | null> {
+  private async runPowershellCapture(script: string): Promise<string> {
     return this.runCommandCapture('powershell', ['-NoProfile', '-Command', script]);
   }
 
