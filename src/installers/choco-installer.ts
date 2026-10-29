@@ -180,7 +180,11 @@ export class ChocoInstaller extends BaseInstaller {
   }
 
   private async runPowershellCapture(script: string): Promise<string> {
-    return this.runCommandCapture('powershell', ['-NoProfile', '-Command', script]);
+    return this.runCommandCapture('powershell', [
+      '-NoProfile',
+      '-Command',
+      script
+    ]);
   }
 
   private async runCommandCapture(
