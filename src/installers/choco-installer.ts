@@ -1,6 +1,16 @@
 import type {IMetanormaSettings} from '../metanorma-settings.js';
 import {BaseInstaller} from './base-installer.js';
-import {startGroup, endGroup, info, debug, warning} from '@actions/core';
+import {
+  startGroup,
+  endGroup,
+  info,
+  debug,
+  warning,
+  addPath
+} from '@actions/core';
+import {exec} from '@actions/exec';
+import {existsSync} from 'fs';
+import {join} from 'path';
 
 /**
  * Windows Chocolatey installer
@@ -77,9 +87,129 @@ export class ChocoInstaller extends BaseInstaller {
       }
 
       info('✓ Metanorma installed successfully via Chocolatey');
+
+      // Since the 1.17.0 MSI packaging, the installer records the install
+      // directory in the MACHINE PATH. Each Actions step is a fresh process
+      // that inherits the environment captured at job start, so that PATH
+      // change is invisible to every later step ("Unable to locate
+      // executable file: metanorma.exe"). Export the MSI's own PATH entries for
+      // this job, re-running its bootstrap seed when it did not complete.
+      await this.exportMsiPathEntries();
     } finally {
       endGroup();
     }
+  }
+
+  /**
+   * The 1.17.0 MSI installs under C:\Program Files\metanorma, appends
+   * <install>\bin and <install>\home\shims (the metanorma shim lives in
+   * the latter) to the MACHINE PATH, and seeds the shims through
+   * bootstrap-seed.cmd. Each Actions step is a fresh process that
+   * inherits the environment captured at job start, so neither the PATH
+   * change nor a failed seed self-heals: locate the install directory
+   * (the MSI records it under SOFTWARE\Metanorma\metanorma!InstallDir),
+   * re-run the idempotent seed, and export both directories.
+   */
+  private async exportMsiPathEntries(): Promise<void> {
+    const installDir = await this.resolveMsiInstallDir();
+    if (!installDir) {
+      warning(
+        'Could not locate the Metanorma install directory; the machine PATH set by the MSI will not be visible to later steps'
+      );
+      return;
+    }
+
+    const seed = join(installDir, 'bootstrap-seed.cmd');
+    if (existsSync(seed)) {
+      // The seed's tebako steps have no error handling and the script always
+      // exits 0, so capture its output and check its product afterwards.
+      const seedOutput = await this.runCommandCapture('cmd', ['/c', seed]);
+      if (seedOutput.trim()) {
+        info(`bootstrap-seed.cmd output:\n${seedOutput.trim()}`);
+      }
+    }
+
+    let added = 0;
+    for (const sub of ['bin', join('home', 'shims')]) {
+      const dir = join(installDir, sub);
+      if (existsSync(dir)) {
+        addPath(dir);
+        info(`Added to PATH: ${dir}`);
+        added += 1;
+      }
+    }
+    if (added === 0) {
+      addPath(installDir);
+      info(`Added to PATH: ${installDir}`);
+    }
+
+    const shim = join(installDir, 'home', 'shims', 'metanorma.exe');
+    if (!existsSync(shim)) {
+      warning(
+        `The metanorma shim ${shim} was not created; 'metanorma' will not resolve even though the install directories are on PATH`
+      );
+    }
+  }
+
+  /**
+   * Locate the MSI install directory: the InstallDir registry value the
+   * MSI writes, falling back to its known default location.
+   */
+  private async resolveMsiInstallDir(): Promise<string | null> {
+    const script = [
+      '$p = Get-ItemProperty',
+      "'HKLM:\\SOFTWARE\\Metanorma\\metanorma',",
+      "'HKLM:\\SOFTWARE\\WOW6432Node\\Metanorma\\metanorma',",
+      "'HKCU:\\SOFTWARE\\Metanorma\\metanorma'",
+      '-ErrorAction SilentlyContinue |',
+      'Where-Object { $_.InstallDir } | Select-Object -First 1;',
+      'if ($p -and $p.InstallDir) { $p.InstallDir }'
+    ].join(' ');
+
+    const dir = (await this.runPowershellCapture(script)).trim();
+    if (dir) {
+      return dir;
+    }
+    debug('No InstallDir registry value found; trying the default location');
+
+    const fallback = join(
+      process.env['ProgramFiles'] ?? 'C:\\Program Files',
+      'metanorma'
+    );
+    return existsSync(fallback) ? fallback : null;
+  }
+
+  private async runPowershellCapture(script: string): Promise<string> {
+    return this.runCommandCapture('powershell', [
+      '-NoProfile',
+      '-Command',
+      script
+    ]);
+  }
+
+  private async runCommandCapture(
+    tool: string,
+    args: string[]
+  ): Promise<string> {
+    let output = '';
+    const exitCode = await exec(tool, args, {
+      silent: true,
+      ignoreReturnCode: true,
+      listeners: {
+        stdout: (data: Buffer) => {
+          output += data.toString();
+        },
+        stderr: (data: Buffer) => {
+          output += data.toString();
+        }
+      }
+    });
+
+    if (exitCode !== 0) {
+      debug(`Install-location query exited ${exitCode}`);
+    }
+
+    return output;
   }
 
   async cleanup(): Promise<void> {
